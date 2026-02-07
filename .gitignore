@@ -1,0 +1,52 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.env
+db.sqlite3
+*.csv
+*.parquet
+.DS_Store
+
+# Virtual environments
+.venv/
+venv/
+env/
+test_venv/
+# Large database files
+chembl_dbs/
+*.tar.gz
+*.db
+
+# Weights & Biases
+wandb/
+
+# Run artifacts
+runs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Model artifacts
+*.pkl
+*.pt
+*.pth
+
+# Logs
+*.log
+hs_err_*.log
+
+# Site build
+site/
+
+# checkpoints for jupyter notebooks
+*.ipynb_checkpoints/
+
+paper/
+
+paper_artifacts/

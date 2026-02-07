@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dta-gnn"
+version = "0.1.5"
+description = "A reproducible pipeline for building target-specific binding affinity datasets from ChEMBL and training Graph Neural Networks for your targets of interest."
+readme = "README.md"
+authors = [
+  { name = "Özsari, Gökhan", email = "gokhan.ozsari@chalmers.se" },
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Science/Research",
+]
+keywords = ["drug-target affinity", "graph neural networks", "cheml", "molecular graphs", "machine learning", "drug discovery"]
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.9.0",
+    "pandas>=2.0.0",
+    "chembl_webresource_client>=0.10.8",
+    "rdkit>=2023.3.1",
+    "scikit-learn>=1.3.0",
+    "pydantic>=2.0.0",
+    "tqdm>=4.65.0",
+    "gradio>=4.0.0",
+    "loguru>=0.7.0",
+    "matplotlib>=3.7.1",
+    "seaborn>=0.12.2",
+    # GNN support (installed by default)
+    "torch>=2.0.0",
+    "torch-geometric>=2.5.0",
+    # Weights & Biases tracking (installed by default)
+    "wandb>=0.16.0",
+    "notebook>=7.5.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/gozsari/DTA-GNN"
+Documentation = "https://github.com/gozsari/DTA-GNN/tree/main/docs"
+Repository = "https://github.com/gozsari/DTA-GNN"
+Issues = "https://github.com/gozsari/DTA-GNN/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "ruff>=0.1.0",
+    "black==23.11.0",
+    "build",
+    "twine",
+]
+
+
+[project.scripts]
+dta_gnn = "dta_gnn.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.black]
+line-length = 88
+target-version = ['py310']

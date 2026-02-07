@@ -1,0 +1,111 @@
+# DTA-GNN Docker Compose Configuration
+# 
+# Usage:
+#   docker-compose up ui          # Start web UI on http://localhost:7860
+#   docker-compose up jupyter     # Start Jupyter Lab on http://localhost:8888
+#   docker-compose run cli --help # Run CLI commands
+#
+# With GPU support:
+#   docker-compose --profile gpu up ui-gpu
+
+version: "3.9"
+
+services:
+  # ==========================================================================
+  # Web UI Service
+  # ==========================================================================
+  ui:
+    build:
+      context: .
+      target: production
+    image: dta-gnn:latest
+    container_name: dta-gnn-ui
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./runs:/home/dtagnn/app/runs
+      - ./chembl_dbs:/home/dtagnn/app/chembl_dbs
+    command: ["dta_gnn", "ui", "--host", "0.0.0.0", "--port", "7860"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # CLI Service (for running commands)
+  # ==========================================================================
+  cli:
+    build:
+      context: .
+      target: production
+    image: dta-gnn:latest
+    container_name: dta-gnn-cli
+    volumes:
+      - ./runs:/home/dtagnn/app/runs
+      - ./chembl_dbs:/home/dtagnn/app/chembl_dbs
+    entrypoint: ["dta_gnn"]
+    # Override command when running: docker-compose run cli setup --version 36 --dir ./chembl_dbs
+
+  # ==========================================================================
+  # Jupyter Lab Service (for development/notebooks)
+  # ==========================================================================
+  jupyter:
+    build:
+      context: .
+      target: development
+    image: dta-gnn:dev
+    container_name: dta-gnn-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/home/dtagnn/app
+      - ./runs:/home/dtagnn/app/runs
+      - ./chembl_dbs:/home/dtagnn/app/chembl_dbs
+    command: ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--NotebookApp.token=''"]
+    restart: unless-stopped
+
+  # ==========================================================================
+  # GPU-enabled UI (requires NVIDIA Docker runtime)
+  # ==========================================================================
+  ui-gpu:
+    build:
+      context: .
+      target: production
+    image: dta-gnn:latest
+    container_name: dta-gnn-ui-gpu
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./runs:/home/dtagnn/app/runs
+      - ./chembl_dbs:/home/dtagnn/app/chembl_dbs
+    command: ["dta_gnn", "ui", "--host", "0.0.0.0", "--port", "7860"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+  # ==========================================================================
+  # Test Runner
+  # ==========================================================================
+  test:
+    build:
+      context: .
+      target: production
+    image: dta-gnn:latest
+    container_name: dta-gnn-test
+    volumes:
+      - ./tests:/home/dtagnn/app/tests
+    command: ["pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+
+volumes:
+  runs:
+  chembl_dbs:
