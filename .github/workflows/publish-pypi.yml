@@ -1,0 +1,79 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # Allow manual run (use PyPI token in secrets)
+
+jobs:
+  publish-pypi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker system prune -af || true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Verify version consistency
+        run: |
+          VERSION_PYPROJECT=$(grep -E '^version\s*=' pyproject.toml | sed -E 's/.*version\s*=\s*"([^"]+)".*/\1/')
+          VERSION_INIT=$(grep -E '^__version__\s*=' src/dta_gnn/__init__.py | sed -E "s/.*__version__\s*=\s*['\"]([^'\"]+)['\"].*/\1/")
+          echo "Version in pyproject.toml: $VERSION_PYPROJECT"
+          echo "Version in __init__.py: $VERSION_INIT"
+          if [ "$VERSION_PYPROJECT" != "$VERSION_INIT" ]; then
+            echo "❌ Version mismatch between pyproject.toml and __init__.py"
+            exit 1
+          fi
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            TAG_VERSION="${{ github.event.release.tag_name }}"
+            TAG_VERSION=${TAG_VERSION#v}
+            echo "Release tag version: $TAG_VERSION"
+            if [ "$VERSION_PYPROJECT" != "$TAG_VERSION" ]; then
+              echo "⚠️  Version in code ($VERSION_PYPROJECT) doesn't match release tag ($TAG_VERSION)"
+              exit 1
+            fi
+          fi
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.APIKEY_PYPI }}
+        run: |
+          twine upload --skip-existing --verbose dist/* || {
+            echo "❌ Upload to PyPI failed."
+            echo "   Ensure PYPI_API_TOKEN is set in repository secrets."
+            echo "   PyPI does not allow re-uploading the same version; bump version and release again."
+            exit 1
+          }
+
+      - name: Verify publication
+        run: |
+          echo "✅ Package published to PyPI!"
+          echo "📦 Install with: pip install dta-gnn"
+          echo "🔗 https://pypi.org/project/dta-gnn/"
