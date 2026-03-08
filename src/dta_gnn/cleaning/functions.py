@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from rdkit import Chem
 from typing import Optional, Literal
+from loguru import logger
 
 
 def standardize_activities(
@@ -96,6 +97,6 @@ def canonicalize_smiles(smiles: str) -> Optional[str]:
         mol = Chem.MolFromSmiles(smiles)
         if mol:
             return Chem.MolToSmiles(mol, canonical=True, isomericSmiles=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to canonicalize SMILES {!r}: {}", smiles, e)
     return None

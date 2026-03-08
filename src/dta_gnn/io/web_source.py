@@ -253,7 +253,8 @@ class ChemblWebSource(ChemblSource):
                     )
                 )
                 return records
-            except Exception:
+            except Exception as e:
+                logger.warning("Primary target lookup failed for accession {!r}: {}", accession, e)
                 # Fallback: try searching via target_component endpoint
                 try:
                     target_component = new_client.target_component
@@ -271,8 +272,8 @@ class ChemblWebSource(ChemblSource):
 
                     if target_ids:
                         return [{"target_chembl_id": tid} for tid in target_ids]
-                except Exception:
-                    pass
+                except Exception as e2:
+                    logger.warning("Fallback target_component lookup also failed for accession {!r}: {}", accession, e2)
 
                 return []
 

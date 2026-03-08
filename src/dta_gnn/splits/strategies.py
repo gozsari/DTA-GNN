@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from typing import Tuple
+from loguru import logger
 
 
 def split_random(
@@ -71,9 +72,8 @@ def split_cold_drug_scaffold(
             if scaff not in scaffolds:
                 scaffolds[scaff] = []
             scaffolds[scaff].append(idx)
-        except Exception:
-            # Fallback for invalid/empty
-            pass
+        except Exception as e:
+            logger.debug("Skipping SMILES {!r} during scaffold split: {}", smi, e)
 
     # 2. Sort scaffolds by size (to balance) or shuffle?
     # Standard practice: sort by num molecules to put rare scaffolds in test?

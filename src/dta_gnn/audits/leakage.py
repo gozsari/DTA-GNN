@@ -1,6 +1,7 @@
 import pandas as pd
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from typing import Dict, Any
+from loguru import logger
 
 
 def audit_scaffold_leakage(
@@ -15,8 +16,8 @@ def audit_scaffold_leakage(
         for s in df[smiles_col].dropna():
             try:
                 scaffs.add(MurckoScaffold.MurckoScaffoldSmiles(s))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Skipping SMILES {!r} during scaffold extraction: {}", s, e)
         return scaffs
 
     train_scaffolds = get_scaffolds(train_df)

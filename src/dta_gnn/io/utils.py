@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
+from loguru import logger
 
 
 @dataclass(frozen=True)
@@ -80,7 +81,8 @@ def iter_existing_files(paths: Iterable[str | None]) -> list[str]:
         try:
             if Path(p).exists():
                 existing.append(p)
-        except Exception:
+        except Exception as e:
+            logger.debug("Could not check file existence for {!r}: {}", p, e)
             continue
     return existing
 
@@ -109,8 +111,8 @@ def find_chembl_sqlite_dbs() -> list[str]:
         repo_candidate = repo_dir / "chembl_dbs"
         if repo_candidate.exists() and repo_candidate.is_dir():
             candidates.append(repo_candidate)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Could not determine repo root for chembl_dbs discovery: {}", e)
 
     exts = {".db", ".sqlite", ".sqlite3"}
     found: list[Path] = []

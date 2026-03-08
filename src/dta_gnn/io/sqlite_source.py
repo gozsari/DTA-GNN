@@ -105,7 +105,11 @@ class ChemblSQLiteSource(ChemblSource):
         with self._get_conn() as conn:
             # Set a longer timeout for large queries
             conn.execute("PRAGMA busy_timeout = 30000")  # 30 seconds
-            df = pd.read_sql_query(query, conn, params=params)
+            try:
+                df = pd.read_sql_query(query, conn, params=params)
+            except (pd.io.sql.DatabaseError, sqlite3.Error) as e:
+                logger.error("SQL query failed while fetching activities: {}", e)
+                raise
             logger.info(f"Query completed. Retrieved {len(df)} activity records.")
             return df
 
@@ -129,7 +133,11 @@ class ChemblSQLiteSource(ChemblSource):
             )
 
             with self._get_conn() as conn:
-                dfs.append(pd.read_sql_query(query, conn, params=chunk))
+                try:
+                    dfs.append(pd.read_sql_query(query, conn, params=chunk))
+                except (pd.io.sql.DatabaseError, sqlite3.Error) as e:
+                    logger.error("SQL query failed fetching molecule chunk (offset={}): {}", i, e)
+                    raise
 
         if not dfs:
             return pd.DataFrame(columns=["molecule_chembl_id", "smiles"])

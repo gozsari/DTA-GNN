@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import os
 from pathlib import Path
+from loguru import logger
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,8 @@ def resolve_run_dir(run_dir: str | Path | None) -> Path | None:
         return None
     try:
         return Path(run_dir).expanduser().resolve()
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to resolve run_dir path {!r}: {}", run_dir, e)
         return None
 
 
@@ -48,7 +50,8 @@ def resolve_current_run_dir(*, hint: str = "Build a dataset first.") -> Path:
     if run_dir.exists():
         try:
             return run_dir.resolve()
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to resolve current run directory, returning as-is: {}", e)
             return run_dir
     raise FileNotFoundError(f"No current run found. Looked for 'runs/current'. {hint}")
 

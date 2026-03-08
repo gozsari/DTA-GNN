@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 
 def artifact_keys_in_zip() -> list[str]:
@@ -56,7 +57,8 @@ def collect_artifacts(
     def _maybe(p: Path) -> str | None:
         try:
             return str(p) if p.exists() else None
-        except Exception:
+        except Exception as e:
+            logger.debug("Path check failed for {!r}: {}", p, e)
             return None
 
     # If caller didn't provide explicit paths, fall back to conventional names in run_dir.
@@ -146,7 +148,8 @@ def write_artifacts_zip(
                 if p and os.path.exists(p):
                     zf.write(p, arcname=os.path.basename(p))
         return str(zpath)
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to create artifact zip at {!r}: {}", zip_path, e)
         return None
 
 

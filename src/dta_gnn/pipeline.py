@@ -105,10 +105,18 @@ class Pipeline:
             prefix="targets_", suffix=".csv", delete=False
         )
         tmp.close()
-        targets_df.to_csv(tmp.name, index=False)
+        try:
+            targets_df.to_csv(tmp.name, index=False)
+        except OSError as e:
+            logger.error("Failed to write targets CSV to {}: {}", tmp.name, e)
+            raise
         self.last_targets_csv = tmp.name
 
         if output_path:
-            dataset_df.to_csv(output_path, index=False)
+            try:
+                dataset_df.to_csv(output_path, index=False)
+            except OSError as e:
+                logger.error("Failed to write dataset CSV to {}: {}", output_path, e)
+                raise
 
         return dataset_df
