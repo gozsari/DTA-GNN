@@ -85,8 +85,6 @@ docker-compose up jupyter   # Jupyter Lab
 
 ## 🚀 Quick Start
 
-Dataset building and GNN training are done via the **Python API** or **Web UI**. The CLI provides setup and UI launch only.
-
 ### CLI
 
 ```bash
@@ -95,9 +93,29 @@ dta_gnn setup --version 36 --dir ./chembl_dbs
 
 # Launch the Web UI
 dta_gnn ui
+
+# Run the full end-to-end pipeline from a UniProt ID
+dta_gnn train-gnn P00533 --architecture gin --wandb-project my_project --n-trials 20 --epochs 30
 ```
 
 ### Python API
+
+```python
+# One-call end-to-end pipeline: UniProt → dataset → HPO → trained GNN → test metrics
+from dta_gnn.training import run_gnn_end_to_end, EndToEndConfig
+
+result = run_gnn_end_to_end(EndToEndConfig(
+    uniprot_ids="P00533",        # EGFR — any UniProt accession
+    architecture="gin",
+    wandb_project="my_project",
+    n_trials=20,
+    epochs=30,
+))
+print(result.test_metrics)   # {"rmse": ..., "r2": ..., "mae": ...}
+print(result.timings)        # per-step wall-clock times
+```
+
+Or use the lower-level API to build datasets and train models step by step:
 
 ```python
 from dta_gnn.pipeline import Pipeline
@@ -168,6 +186,7 @@ The UI will be available at `http://localhost:7860` (or the specified host/port)
 - Automatic leakage auditing
 
 ### 📦 End-to-End Pipeline
+- **One-call end-to-end pipeline**: UniProt ID → ChEMBL dataset → W&B HPO → trained GNN → test evaluation
 - ChEMBL data fetching (Web API or SQLite)
 - Standardized pChEMBL conversion
 - Duplicate aggregation

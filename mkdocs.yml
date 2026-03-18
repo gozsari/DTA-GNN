@@ -112,6 +112,7 @@ nav:
   - Modeling:
     - Featurization: modeling/features.md
     - Training Models: modeling/models.md
+    - End-to-End Pipeline: modeling/end-to-end.md
   - Hyperparameter Optimization:
     - Overview: hpo/hyperopt.md
   - Development:

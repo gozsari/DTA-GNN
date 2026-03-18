@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dta-gnn"
-version = "0.1.5"
+version = "0.1.1"
 description = "A reproducible pipeline for building target-specific binding affinity datasets from ChEMBL and training Graph Neural Networks for your targets of interest."
 readme = "README.md"
 authors = [

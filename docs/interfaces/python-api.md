@@ -2,6 +2,87 @@
 
 DTA-GNN provides a comprehensive Python API for programmatic dataset building and model training.
 
+## End-to-End GNN Training
+
+The simplest way to go from a UniProt accession to a trained GNN is `run_gnn_end_to_end`. It handles every step automatically: target mapping, dataset building, W&B Bayesian HPO, final training, and test evaluation.
+
+```python
+from dta_gnn.training import run_gnn_end_to_end, EndToEndConfig
+
+result = run_gnn_end_to_end(EndToEndConfig(
+    uniprot_ids="P00533",        # EGFR
+    architecture="gin",
+    sqlite_path="chembl_36.db",  # omit to use web API
+    wandb_project="my_project",
+    n_trials=20,
+    epochs=30,
+))
+
+print(result.test_metrics)   # {"rmse": ..., "r2": ..., "mae": ...}
+print(result.timings)        # per-step wall-clock seconds
+print(result.run_dir)        # path to the timestamped run folder
+```
+
+### EndToEndConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `uniprot_ids` | `str` | _(required)_ | UniProt accession(s), comma/space/semicolon-separated |
+| `architecture` | `str` | `"gin"` | GNN architecture: `gin\|gcn\|gat\|sage\|pna\|transformer\|tag\|arma\|cheb\|supergat` |
+| `sqlite_path` | `str \| None` | `None` | Path to ChEMBL SQLite DB; `None` uses web API |
+| `standard_types` | `list[str] \| None` | `None` | Activity types to include, e.g. `["IC50", "Ki"]`; `None` = all |
+| `test_size` | `float` | `0.2` | Fraction of data for the test split |
+| `val_size` | `float` | `0.1` | Fraction of data for the validation split |
+| `wandb_project` | `str` | `"dta_gnn"` | W&B project name |
+| `wandb_entity` | `str \| None` | `None` | W&B entity / team |
+| `wandb_api_key` | `str \| None` | `None` | W&B API key (falls back to env variable) |
+| `n_trials` | `int` | `20` | Number of HPO sweep trials |
+| `lr_min` / `lr_max` | `float` | `1e-5` / `1e-2` | Learning rate search range |
+| `embedding_dim_min` / `embedding_dim_max` | `int` | `32` / `256` | Embedding dim search range |
+| `hidden_dim_min` / `hidden_dim_max` | `int` | `32` / `256` | Hidden dim search range |
+| `num_layers_min` / `num_layers_max` | `int` | `1` / `5` | Number of layers search range |
+| `dropout_min` / `dropout_max` | `float` | `0.0` / `0.5` | Dropout search range |
+| `epochs` | `int` | `30` | Epochs for final model training |
+| `batch_size` | `int` | `64` | Mini-batch size |
+| `runs_root` | `str` | `"runs"` | Root directory for run folders |
+| `device` | `str \| None` | `None` | Device: `mps\|cuda\|cpu\|None` (auto-detect) |
+
+### run_gnn_end_to_end
+
+```python
+from dta_gnn.training import run_gnn_end_to_end, EndToEndConfig
+
+result: EndToEndResult = run_gnn_end_to_end(config: EndToEndConfig)
+```
+
+Executes four timed steps:
+
+1. **uniprot_mapping** — resolves UniProt accessions to ChEMBL target IDs (SQLite or web)
+2. **dataset_build** — runs `Pipeline.build_dta()` with scaffold split, saves `dataset.csv` and `compounds.csv`
+3. **hyperparameter_search** — W&B Bayesian sweep over `n_trials` trials; optimises validation R²
+4. **final_training** — trains the GNN with the best hyperparameters and evaluates on the test set
+
+Raises `ValueError` if no ChEMBL targets are found or the dataset is empty.
+
+### EndToEndResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `run_dir` | `Path` | Timestamped run directory |
+| `uniprot_ids` | `list[str]` | Parsed UniProt accessions |
+| `target_chembl_ids` | `list[str]` | Resolved ChEMBL target IDs |
+| `architecture` | `str` | GNN architecture used |
+| `dataset_size` | `int` | Total number of rows |
+| `train_size` | `int` | Training set size |
+| `val_size_actual` | `int` | Validation set size |
+| `test_size_actual` | `int` | Test set size |
+| `hyperopt_result` | `HyperoptResult` | Best params and best validation score |
+| `train_result` | `GnnTrainResult` | Final training artifacts |
+| `test_metrics` | `dict` | `{"rmse": ..., "mae": ..., "r2": ...}` |
+| `timings` | `dict` | Per-step wall-clock seconds |
+
+---
+
 ## Core Classes
 
 ### Pipeline

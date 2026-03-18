@@ -230,6 +230,12 @@ class HyperoptConfig:
     supergat_attention_type_choices: list[str] = None  # type: ignore[assignment]
     supergat_attention_type_default: str = "MX"  # "MX" (Mixed) or "SD" (Self-Distillation)
 
+    # Weight decay (L2 regularisation)
+    optimize_weight_decay: bool = False
+    weight_decay_min: float = 1e-6
+    weight_decay_max: float = 1e-3
+    weight_decay_default: float = 0.0
+
     # Device for GNN training
     device: str | None = None  # "auto", "mps", "cuda", "cpu", or None (auto)
 
@@ -252,15 +258,19 @@ class HyperoptResult:
 def _score_from_gnn_metrics(task_type: str, metrics: dict) -> float:
     """Single scalar score to maximize for regression."""
     val = (metrics or {}).get("splits", {}).get("val", {}) or {}
-    # Regression: prefer r2, otherwise maximize -rmse.
+    rmse = val.get("rmse")
+    if rmse is not None:
+        try:
+            return -float(rmse)
+        except Exception:
+            pass
     r2 = val.get("r2")
     if r2 is not None:
         try:
             return float(r2)
         except Exception:
             pass
-    rmse = val.get("rmse")
-    return -float(rmse) if rmse is not None else 0.0
+    return 0.0
 
 
 def _infer_task_type_from_metadata_or_labels(
@@ -796,7 +806,8 @@ def optimize_gnn_wandb(
         )
 
     arch = str(getattr(config, "architecture", "gin") or "gin").strip().lower()
-    if arch not in {"gin", "gcn", "gat", "sage", "pna"}:
+    _ALL_ARCHS = {"gin", "gcn", "gat", "sage", "pna", "transformer", "tag", "arma", "cheb", "supergat"}
+    if arch not in _ALL_ARCHS:
         arch = "gin"
 
     project = (project or "").strip() or "dta_gnn"
@@ -975,6 +986,13 @@ def optimize_gnn_wandb(
         if config.optimize_supergat_attention_type:
             parameters["supergat_attention_type"] = {"values": supergat_attention_choices}
 
+    if config.optimize_weight_decay:
+        parameters["weight_decay"] = {
+            "distribution": "log_uniform_values",
+            "min": float(config.weight_decay_min),
+            "max": float(config.weight_decay_max),
+        }
+
     if not parameters:
         raise ValueError(
             "No parameters selected for optimization. "
@@ -1095,6 +1113,7 @@ def optimize_gnn_wandb(
             epochs=int(sampled.get("epochs", int(getattr(config, "epochs_default", 20)))),
             batch_size=int(sampled.get("batch_size", int(getattr(config, "batch_size_default", 64)))),
             lr=float(sampled.get("lr", 1e-3)),
+            weight_decay=float(sampled.get("weight_decay", float(getattr(config, "weight_decay_default", 0.0)))),
             embedding_dim=int(sampled.get("embedding_dim", int(getattr(config, "embedding_dim_default", 128)))),
             device=getattr(config, "device", None),
             hidden_dim=int(sampled.get("hidden_dim", int(getattr(config, "hidden_dim_default", 128)))),

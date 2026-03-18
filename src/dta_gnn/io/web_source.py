@@ -100,6 +100,10 @@ class ChemblWebSource(ChemblSource):
                 consecutive_errors += 1
                 error_msg = str(e)
                 if "500" in error_msg or "server" in error_msg.lower():
+                    logger.error(
+                        "ChEMBL API server error (HTTP 500) while fetching activities "
+                        "after {} records. Original error: {}", count, error_msg
+                    )
                     raise RuntimeError(
                         f"ChEMBL API is experiencing server issues (HTTP 500). "
                         f"This is a temporary problem on their end. "
@@ -107,6 +111,10 @@ class ChemblWebSource(ChemblSource):
                         f"Fetched {count} records before failure."
                     ) from e
                 if consecutive_errors >= max_consecutive_errors:
+                    logger.error(
+                        "Aborting activity fetch after {} consecutive ChEMBL API errors "
+                        "({} records fetched). Last error: {}", consecutive_errors, count, error_msg
+                    )
                     raise RuntimeError(
                         f"Failed to fetch activities after {consecutive_errors} consecutive errors. "
                         f"Last error: {error_msg}. Fetched {count} records before failure."
@@ -168,6 +176,10 @@ class ChemblWebSource(ChemblSource):
             except Exception as e:
                 consecutive_errors += 1
                 if consecutive_errors >= 3:
+                    logger.error(
+                        "Aborting molecule fetch after {} consecutive ChEMBL API errors. "
+                        "Last error: {}", consecutive_errors, str(e)[:200]
+                    )
                     raise RuntimeError(
                         f"Failed to fetch molecules after multiple errors. "
                         f"ChEMBL API may be experiencing issues. Error: {str(e)[:100]}"
@@ -201,6 +213,10 @@ class ChemblWebSource(ChemblSource):
             except Exception as e:
                 consecutive_errors += 1
                 if consecutive_errors >= 3:
+                    logger.error(
+                        "Aborting target fetch after {} consecutive ChEMBL API errors. "
+                        "Last error: {}", consecutive_errors, str(e)[:200]
+                    )
                     raise RuntimeError(
                         f"Failed to fetch targets after multiple errors. "
                         f"ChEMBL API may be experiencing issues. Error: {str(e)[:100]}"

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
 
+from loguru import logger
+
 
 _UNIPROT_RE = re.compile(
     r"^[A-NR-Z][0-9][A-Z0-9]{3}[0-9]$|^[OPQ][0-9][A-Z0-9]{3}[0-9]$"
@@ -129,7 +131,10 @@ def map_uniprot_to_chembl_targets_web(
             per_input[a] = sorted(
                 {t["target_chembl_id"] for t in targets if "target_chembl_id" in t}
             )
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "ChEMBL Web API lookup failed for UniProt accession {!r}: {}", a, exc
+            )
             per_input[a] = []
 
     resolved = sorted({tid for tids in per_input.values() for tid in tids})

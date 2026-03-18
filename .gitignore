@@ -50,3 +50,6 @@ site/
 paper/
 
 paper_artifacts/
+
+*env*/
+extras/

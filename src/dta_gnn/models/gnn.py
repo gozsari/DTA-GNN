@@ -689,6 +689,10 @@ def train_gnn_on_run(
         weight_decay=float(cfg.weight_decay),
     )
 
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.5, patience=10, min_lr=1e-6,
+    )
+
     criterion = torch.nn.MSELoss()
 
     train_loader = DataLoader(train_data, batch_size=int(cfg.batch_size), shuffle=True)
@@ -779,6 +783,7 @@ def train_gnn_on_run(
             y = batch.y.view(-1).float()
             loss = criterion(logits.view(-1), y)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             epoch_losses.append(loss.item())
         
@@ -804,7 +809,10 @@ def train_gnn_on_run(
                     best_val_metrics = val_metrics.copy()
                     score_str = f"R²={val_metrics['r2']:.4f}" if val_metrics["r2"] is not None else f"RMSE={val_metrics['rmse']:.4f}"
                     print(f"  ✓ New best model at epoch {best_epoch} (val_{score_str})")
-        
+
+        if val_loss is not None:
+            scheduler.step(val_loss)
+
         # Log to wandb if available
         if wandb_run is not None:
             log_dict = {

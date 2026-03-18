@@ -106,11 +106,6 @@ def _update_model_choices(model_type: str) -> tuple[list[str], str]:
         else:
             return ["GNN (2D)"], "GNN (2D)"
 
-
-
-
-
-
 def build_dataset(
     dataset_kind,
     target_id_type,
@@ -219,7 +214,10 @@ def build_dataset(
                     targets_df = pipeline.source.fetch_targets(unique_targets)
                     targets_df.to_csv(targets_csv_path, index=False)
                     pipeline.last_targets_csv = str(targets_csv_path)
-                except Exception:
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to fetch/save targets CSV (ChEMBL API may be unavailable): {}", exc
+                    )
                     pipeline.last_targets_csv = getattr(
                         pipeline, "last_targets_csv", None
                     )
@@ -234,7 +232,10 @@ def build_dataset(
                     compounds_df = pipeline.source.fetch_molecules(unique_mols)
                     compounds_df.to_csv(compounds_csv_path, index=False)
                     pipeline.last_compounds_csv = str(compounds_csv_path)
-                except Exception:
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to fetch/save compounds CSV (ChEMBL API may be unavailable): {}", exc
+                    )
                     pipeline.last_compounds_csv = getattr(
                         pipeline, "last_compounds_csv", None
                     )
@@ -283,7 +284,18 @@ def build_dataset(
         thread.join()
 
         if "error" in result:
-            raise gr.Error(f"Error building dataset: {result['error']}")
+            _err = result["error"]
+            _err_lower = str(_err).lower()
+            _chembl_api_keywords = (
+                "chembl api", "http 500", "server", "connection", "timeout", "temporary"
+            )
+            if any(kw in _err_lower for kw in _chembl_api_keywords):
+                raise gr.Error(
+                    "The ChEMBL Web API is temporarily unavailable (connection timeout or "
+                    "server error). Please try again in a few minutes, or switch to the "
+                    f"SQLite source if the problem persists. Details: {_err}"
+                )
+            raise gr.Error(f"Error building dataset: {_err}")
 
         df = result.get("df")
         if not isinstance(df, pd.DataFrame):
@@ -1714,8 +1726,8 @@ def build_ui() -> tuple[gr.Blocks, UIComponents]:
                                 source_input = gr.Radio(
                                     ["web", "sqlite"],
                                     label="Data Source",
-                                    value="sqlite",
-                                    info="Use 'sqlite' for local ChEMBL DBs under chembl_dbs/.",
+                                    value="web",
+                                    info="'web' queries ChEMBL API (no local setup, but slower). 'sqlite' queries a local ChEMBL SQLite database (fast, requires setup).",
                                 )
                                 if sqlite_db_choices:
                                     sqlite_path_input: gr.components.Component = (

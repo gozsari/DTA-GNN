@@ -1,6 +1,6 @@
 # Command Line Interface
 
-DTA-GNN provides a command-line interface for setup, UI launch, and lightweight auditing.
+DTA-GNN provides a command-line interface for setup, UI launch, lightweight auditing, and end-to-end GNN training from a UniProt accession.
 
 ## Installation
 
@@ -23,8 +23,9 @@ dta_gnn --help
 | `audit` | Run audit on an existing dataset |
 | `setup` | Download and set up ChEMBL database |
 | `ui` | Launch the Gradio web interface |
+| `train-gnn` | Run end-to-end GNN training pipeline from a UniProt ID |
 
-**Note**: Dataset building is done via the Python API (`Pipeline.build_dta()`) or the Web UI (`dta_gnn ui`). The CLI no longer includes dataset building commands.
+Dataset building is also available via the Python API (`Pipeline.build_dta()`) or the Web UI (`dta_gnn ui`) for more control over individual steps.
 
 ## setup
 
@@ -134,6 +135,76 @@ dta_gnn ui --share
 - Hyperparameter optimization
 - Download results as CSV/ZIP
 
+## train-gnn
+
+Run the complete end-to-end GNN training pipeline from a UniProt protein accession. The command handles UniProt→ChEMBL mapping, dataset building with scaffold split, W&B Bayesian hyperparameter search, final model training, and test evaluation — all timed per step.
+
+### Usage
+
+```bash
+dta_gnn train-gnn UNIPROT_IDS [OPTIONS]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `UNIPROT_IDS` | UniProt accession(s), comma/space/semicolon-separated. E.g. `P00533` or `P00533,P04637` |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--architecture` | `gin` | GNN architecture: `gin\|gcn\|gat\|sage\|pna\|transformer\|tag\|arma\|cheb\|supergat` |
+| `--sqlite-path` | _(web API)_ | Path to ChEMBL SQLite DB. Omit to use the web API. |
+| `--standard-types` | _(all)_ | Comma-separated activity types, e.g. `IC50,Ki`. Omit for all types. |
+| `--test-size` | `0.2` | Fraction of data for the test split. |
+| `--val-size` | `0.1` | Fraction of data for the validation split. |
+| `--wandb-project` | `dta_gnn` | W&B project name for HPO and final training runs. |
+| `--wandb-entity` | _(none)_ | W&B entity / team name. |
+| `--wandb-api-key` | _(env)_ | W&B API key. Falls back to `WANDB_API_KEY` env variable. |
+| `--n-trials` | `20` | Number of Bayesian HPO sweep trials. |
+| `--epochs` | `30` | Epochs for final model training. |
+| `--batch-size` | `64` | Mini-batch size for GNN training. |
+| `--device` | _(auto)_ | Device: `auto\|mps\|cuda\|cpu`. Defaults to auto-detect. |
+| `--runs-root` | `runs` | Root directory for timestamped run folders. |
+
+### Examples
+
+```bash
+# Minimal — uses web API for ChEMBL data
+dta_gnn train-gnn P00533
+
+# With local SQLite database (faster)
+dta_gnn train-gnn P00533 --architecture gin --sqlite-path ./chembl_dbs/chembl_36.db
+
+# Full options — multiple targets, filtered activity types, custom HPO budget
+dta_gnn train-gnn "P00533,P04637" \
+    --architecture gat \
+    --sqlite-path ./chembl_dbs/chembl_36.db \
+    --standard-types IC50,Ki \
+    --n-trials 40 --epochs 50 \
+    --wandb-project egfr_study \
+    --wandb-entity my_team
+```
+
+### Terminal Output
+
+```
+Run directory : runs/20260309_142301
+Dataset size  : 4821 rows  (train=3735, val=469, test=617)
+Best val R²   : 0.7842
+Test metrics  :  rmse=0.6231  mae=0.4812  r2=0.7614
+
+Timings
+  uniprot_mapping                     1.3s  (0%)
+  dataset_build                     182.4s  (45%)
+  hyperparameter_search             201.7s  (50%)
+  final_training                     18.2s  (5%)
+  ──────────────────────────────────────────
+  Total                             403.6s  (6.7 min)
+```
+
 ## Shell Completion
 
 Enable shell completion for a better CLI experience:
@@ -161,7 +232,7 @@ Enable shell completion for a better CLI experience:
 
 ## Scripting Examples
 
-**Note**: Dataset building is done via the [Python API](python-api.md#build_dta) or the [Web UI](ui.md). The CLI is primarily for database setup, UI access, and auditing.
+For a quick end-to-end run from the terminal, use `train-gnn`. For fine-grained control over individual pipeline steps, use the [Python API](python-api.md).
 
 ## Troubleshooting
 
