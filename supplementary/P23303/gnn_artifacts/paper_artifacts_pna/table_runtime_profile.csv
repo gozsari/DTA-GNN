@@ -1,0 +1,4 @@
+Phase,Wall-clock (s),Per-epoch (s),Epochs,dRAM (MiB),Peak GPU (MiB)
+Hpo,66999.63,---,---,1158.6,472.0
+Gnn Training,415.01,4.15,100,104.7,471.0
+Embedding Extraction,6.71,---,---,7.7,101.4

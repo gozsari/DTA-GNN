@@ -1,0 +1,24 @@
+{
+  "device": "GPU (Tesla T4)",
+  "cpu": "x86_64",
+  "python": "3.11.3",
+  "phases": {
+    "hpo": {
+      "wall_s": 73029.23,
+      "delta_ram_mb": 1172.5,
+      "peak_gpu_mb": 882.5
+    },
+    "gnn_training": {
+      "wall_s": 451.81,
+      "wall_per_epoch_s": 4.518,
+      "n_epochs": 100,
+      "delta_ram_mb": 84.2,
+      "peak_gpu_mb": 879.2
+    },
+    "embedding_extraction": {
+      "wall_s": 6.51,
+      "delta_ram_mb": -24.4,
+      "peak_gpu_mb": 101.8
+    }
+  }
+}

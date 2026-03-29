@@ -1,0 +1,16 @@
+{
+  "device": "CPU",
+  "cpu": "arm",
+  "python": "3.11.8",
+  "os": "Darwin 25.3.0",
+  "phases": {
+    "random_forest": {
+      "wall_s": 0.92,
+      "delta_ram_mb": 48.0
+    },
+    "svr": {
+      "wall_s": 13.59,
+      "delta_ram_mb": 42.2
+    }
+  }
+}

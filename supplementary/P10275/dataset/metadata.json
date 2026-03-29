@@ -1,0 +1,14 @@
+{
+  "uniprot_id": "P10275",
+  "target_chembl_ids": [
+    "CHEMBL1871",
+    "CHEMBL4296118",
+    "CHEMBL4523653",
+    "CHEMBL4523684",
+    "CHEMBL4523730",
+    "CHEMBL5169084"
+  ],
+  "split_method": "scaffold",
+  "n_samples": 3267,
+  "n_compounds": 3267
+}

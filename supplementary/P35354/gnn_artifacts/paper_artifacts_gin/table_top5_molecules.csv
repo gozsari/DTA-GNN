@@ -1,0 +1,6 @@
+rank,SMILES,predicted_affinity,true_affinity
+1,CS(=O)(=O)c1ccc(-c2[nH]c(Br)cc2-c2ccc(F)cc2)cc1,8.09579849243164,4.400000095367432
+2,NS(=O)(=O)c1ccc(-c2ccc(F)c(F)c2-c2ccc3c(c2)OCO3)cc1,8.058759689331055,8.399999618530273
+3,CS(=O)(=O)c1ccc(-c2[nH]c(Cl)c(Cl)c2-c2ccc(F)cc2)cc1,7.911662101745605,4.159999847412109
+4,CS(=O)(=O)c1ccc(-c2[nH]c(I)cc2-c2ccc(F)cc2)cc1,7.855128288269043,4.039999961853027
+5,CS(=O)(=O)c1ccc(-c2[nH]c(Cl)c(Br)c2-c2ccc(F)cc2)cc1,7.831555366516113,4.059999942779541

@@ -1,0 +1,11 @@
+{
+  "architecture": "gat",
+  "dropout": 0.019918260083810015,
+  "gat_heads": 5,
+  "lr": 0.00033390376234048987,
+  "num_layers": 4,
+  "pooling": "attention",
+  "residual": true,
+  "weight_decay": 7.261216672151207e-05,
+  "val_score": -0.732726648530135
+}

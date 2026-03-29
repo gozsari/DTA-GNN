@@ -1,0 +1,13 @@
+{
+  "architecture": "gin",
+  "dropout": 0.003203387831902971,
+  "gin_conv_mlp_layers": 2,
+  "gin_eps": 0.39542384091893434,
+  "gin_train_eps": true,
+  "lr": 0.0006801938649661502,
+  "num_layers": 5,
+  "pooling": "attention",
+  "residual": true,
+  "weight_decay": 5.9597596738200395e-06,
+  "val_score": -0.6900066362602416
+}

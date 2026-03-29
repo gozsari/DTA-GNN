@@ -1,0 +1,10 @@
+{
+  "uniprot_id": "P22303",
+  "target_chembl_ids": [
+    "CHEMBL2095233",
+    "CHEMBL220"
+  ],
+  "split_method": "scaffold",
+  "n_samples": 7371,
+  "n_compounds": 7371
+}

@@ -1,0 +1,11 @@
+{
+  "architecture": "sage",
+  "dropout": 0.06264925026061277,
+  "lr": 0.0037525281958155337,
+  "num_layers": 3,
+  "pooling": "add",
+  "residual": true,
+  "sage_aggr": "max",
+  "weight_decay": 0.0002158855242079275,
+  "val_score": -0.7191736693679199
+}

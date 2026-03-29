@@ -1,0 +1,2 @@
+trial,architecture,dropout,gat_heads,lr,num_layers,pooling,residual,weight_decay,val_score
+123,gat,0.019918260083810015,5,0.00033390376234048987,4,attention,True,7.261216672151207e-05,-0.732726648530135

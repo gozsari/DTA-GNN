@@ -1,0 +1,10 @@
+{
+  "architecture": "pna",
+  "dropout": 0.04471201965774423,
+  "lr": 0.0001844338886182761,
+  "num_layers": 3,
+  "pooling": "max",
+  "residual": true,
+  "weight_decay": 2.0190727120851327e-05,
+  "val_score": -0.709782459309151
+}

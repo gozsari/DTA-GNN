@@ -1,0 +1,2 @@
+trial,architecture,dropout,lr,num_layers,pooling,residual,weight_decay,val_score
+113,gcn,0.034142167323878335,0.001310368964856872,5,max,True,1.1081965563538266e-05,-1.04143491337641
