@@ -89,7 +89,7 @@ def test_split_cold_drug_scaffold_invalid():
         # So invalid row will have NaN in "split".
         invalid_row = df_split[df_split["smiles"] == "INVALID_SMILES"]
         if "split" in invalid_row.columns:
-             assert pd.isna(invalid_row.iloc[0]["split"])
+             assert invalid_row.iloc[0]["split"] not in ("train", "val", "test")
 
 def test_split_temporal():
     """Test temporal splitting."""

@@ -3,11 +3,15 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import torch
 
 pytest.importorskip("torch")
 pytest.importorskip("torch_geometric")
 
 from dta_gnn.models.gnn import GinTrainConfig, train_gin_on_run
+
+_MPS_ONLY = torch.backends.mps.is_available() and not torch.cuda.is_available()
+_MPS_SKIP_ARCHS = {"gat", "pna", "supergat"}
 
 
 @pytest.mark.parametrize(
@@ -26,6 +30,9 @@ from dta_gnn.models.gnn import GinTrainConfig, train_gin_on_run
     ],
 )
 def test_train_gin_on_run_writes_artifacts(tmp_path: Path, architecture: str):
+    if _MPS_ONLY and architecture in _MPS_SKIP_ARCHS:
+        pytest.skip("scatter_reduce not implemented on MPS")
+
     run_dir = tmp_path / "runs" / "r1"
     run_dir.mkdir(parents=True)
 

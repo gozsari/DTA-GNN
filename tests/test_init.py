@@ -5,7 +5,7 @@ from dta_gnn import __version__
 
 def test_version():
     """Test that version is set correctly."""
-    assert __version__ == "0.1.4"
+    assert __version__ == "0.2.0"
 
 
 def test_package_imports():

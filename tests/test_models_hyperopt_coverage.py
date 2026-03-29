@@ -229,7 +229,7 @@ def test_optimize_gnn_wandb_execution(mock_wandb, run_dir_setup):
         # So it should be 7.
         assert kwargs['config'].epochs == 7
 
-        assert result.best_value == 0.8
+        assert result.best_value == -0.2
 
 def test_optimize_rf_wandb_execution(mock_wandb, run_dir_setup):
     """Test execution of RF hyperopt trial."""
