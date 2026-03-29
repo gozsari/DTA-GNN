@@ -202,7 +202,6 @@ Tables S9–S11 report wall-clock times and peak GPU memory for each GNN archite
 | SAGE |  64.5 | 0.645 | 5.9 | 80 | 97 |
 | PNA | 218.4 | 2.184 | 5.2 | 385 | 97 |
 
-__Note:__ The runtimes for HPO can be calculated by multiplying training times with the number of trials (200) reported in Tables S9–S11.
 
 ### S2.3. Classical Baseline Runtimes (CPU)
 
