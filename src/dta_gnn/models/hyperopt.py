@@ -921,14 +921,13 @@ def optimize_gnn_wandb(
         sage_aggr_choices = getattr(config, "sage_aggr_choices", None) or [
             "mean",
             "max",
-            "lstm",
-            "pool",
+            "add",
         ]
         sage_aggr_choices = [
-            str(x) for x in sage_aggr_choices if str(x) in {"mean", "max", "lstm", "pool"}
+            str(x) for x in sage_aggr_choices if str(x) in {"mean", "max", "add"}
         ]
         if not sage_aggr_choices:
-            sage_aggr_choices = ["mean", "max", "lstm", "pool"]
+            sage_aggr_choices = ["mean", "max", "add"]
         if config.optimize_sage_aggr:
             parameters["sage_aggr"] = {"values": sage_aggr_choices}
 
@@ -1018,7 +1017,7 @@ def optimize_gnn_wandb(
     def _trial_fn():
         nonlocal best_score, best_params, best_trial_number
 
-        run = wandb.init(project=project, entity=entity, config={})
+        run = wandb.init(project=project, entity=entity, config={"architecture": arch})
         trial_idx = int(trial_counter["i"])
         trial_counter["i"] = trial_idx + 1
         
@@ -1028,11 +1027,7 @@ def optimize_gnn_wandb(
         # Pull optimized params from wandb.config; fill the rest from defaults.
         sampled = dict(getattr(wandb, "config", {}) or {})
         
-        # Log all hyperparameters to wandb
-        wandb.config.update({
-            "trial_number": trial_idx,
-            "architecture": arch,
-        })
+        wandb.config.update({"trial_number": trial_idx})
 
         # Architecture-specific parameters
         gin_conv_mlp_layers = int(

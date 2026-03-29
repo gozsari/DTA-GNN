@@ -88,7 +88,8 @@ def _morgan_fingerprints(
 def train_random_forest_on_run(
     run_dir: str | Path,
     *,
-    n_estimators: int = 500,
+    n_estimators: int = 100,
+    max_depth: int | None = 5,
     random_seed: int = 42,
 ) -> RandomForestTrainResult:
     """Train a RandomForest baseline on `runs/<run>/dataset.csv` + `compounds.csv`.
@@ -209,6 +210,7 @@ def train_random_forest_on_run(
     if task_type == "classification":
         model = RandomForestClassifier(
             n_estimators=int(n_estimators),
+            max_depth=max_depth,
             random_state=int(random_seed),
             n_jobs=-1,
         )
@@ -216,6 +218,7 @@ def train_random_forest_on_run(
     else:
         model = RandomForestRegressor(
             n_estimators=int(n_estimators),
+            max_depth=max_depth,
             random_state=int(random_seed),
             n_jobs=-1,
         )

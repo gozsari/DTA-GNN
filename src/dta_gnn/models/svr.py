@@ -135,8 +135,8 @@ def _load_dataset_with_smiles(run_dir: Path) -> pd.DataFrame:
 def train_svr_on_run(
     run_dir: str | Path,
     *,
-    C: float = 10.0,
-    epsilon: float = 0.1,
+    C: float = 1.0,
+    epsilon: float = 0.5,
     kernel: str = "rbf",
     random_seed: int = 42,
 ) -> SvrTrainResult:

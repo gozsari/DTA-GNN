@@ -740,7 +740,17 @@ def train_gnn_on_run(
         
         yt = np.asarray(y_true_list, dtype=float)
         yp = np.asarray(y_pred_list, dtype=float)
-        
+
+        if np.any(np.isnan(yp)) or np.any(np.isinf(yp)):
+            return {
+                "loss": float("inf"),
+                "rmse": float("inf"),
+                "mae": float("inf"),
+                "r2": -float("inf"),
+                "pearson_r": 0.0,
+                "spearman_r": 0.0,
+            }
+
         from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
         from scipy.stats import pearsonr, spearmanr
         
