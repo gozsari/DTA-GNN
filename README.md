@@ -9,7 +9,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-156%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-184%20passing-brightgreen.svg)]()
 
 **🧬 From ChEMBL target → Clean dataset → Trained GNN for your target of interest**
 

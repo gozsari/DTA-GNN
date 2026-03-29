@@ -10,10 +10,18 @@ This guide covers all installation options for DTA-GNN.
 
 ## Basic Installation
 
-Install the core package from PyPI:
+Install from PyPI:
 
 ```bash
 pip install dta-gnn
+```
+
+Install from source:
+
+```bash
+git clone https://github.com/gozsari/DTA-GNN.git
+cd DTA-GNN
+pip install -e .
 ```
 
 This includes all essential dependencies:
@@ -141,7 +149,33 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 ## Docker
 
-To run the Gradio UI in Docker. See the main repository `Dockerfile` for build/run commands.
+Pull the pre-built image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/gozsari/dta-gnn:latest
+```
+
+Run the Gradio web UI:
+
+```bash
+docker run --rm -p 7860:7860 ghcr.io/gozsari/dta-gnn:latest
+```
+
+With a local ChEMBL database and persistent runs:
+
+```bash
+docker run --rm -p 7860:7860 \
+  -v $(pwd)/chembl_dbs:/home/dtagnn/app/chembl_dbs \
+  -v $(pwd)/runs:/home/dtagnn/app/runs \
+  ghcr.io/gozsari/dta-gnn:latest
+```
+
+Or use Docker Compose:
+
+```bash
+docker-compose up ui        # Web UI on http://localhost:7860
+docker-compose up jupyter   # Jupyter Lab on http://localhost:8888
+```
 
 ## Next Steps
 

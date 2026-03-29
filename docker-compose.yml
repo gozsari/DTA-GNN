@@ -17,7 +17,6 @@ services:
   ui:
     build:
       context: .
-      target: production
     image: dta-gnn:latest
     container_name: dta-gnn-ui
     ports:
@@ -39,7 +38,6 @@ services:
   cli:
     build:
       context: .
-      target: production
     image: dta-gnn:latest
     container_name: dta-gnn-cli
     volumes:
@@ -54,7 +52,6 @@ services:
   jupyter:
     build:
       context: .
-      target: development
     image: dta-gnn:dev
     container_name: dta-gnn-jupyter
     ports:
@@ -72,7 +69,6 @@ services:
   ui-gpu:
     build:
       context: .
-      target: production
     image: dta-gnn:latest
     container_name: dta-gnn-ui-gpu
     ports:
@@ -97,7 +93,6 @@ services:
   test:
     build:
       context: .
-      target: production
     image: dta-gnn:latest
     container_name: dta-gnn-test
     volumes:

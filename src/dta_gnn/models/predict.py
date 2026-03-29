@@ -233,7 +233,7 @@ def predict_with_gnn(
         from torch_geometric.loader import DataLoader
     except ImportError:
         raise ImportError(
-            "PyTorch Geometric not installed. Install with: pip install 'dta_gnn[molecule-gnn]'"
+            "PyTorch Geometric not installed. Install with: pip install torch torch-geometric"
         )
 
     run_dir = Path(run_dir).resolve()

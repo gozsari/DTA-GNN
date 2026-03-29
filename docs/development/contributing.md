@@ -15,7 +15,7 @@ Thank you for your interest in contributing to DTA-GNN! This guide will help you
 ```bash
 # Clone the repository
 git clone https://github.com/gozsari/DTA-GNN.git
-cd dta_gnn
+cd DTA-GNN
 
 # Create virtual environment
 python -m venv venv
@@ -23,9 +23,6 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install in editable mode with dev dependencies
 pip install -e ".[dev]"
-
-# Install all optional dependencies for full testing
-pip install -e ".[dev,molecule-gnn,wandb]"
 ```
 
 ### Verify Setup
@@ -58,10 +55,9 @@ dta_gnn/
 │       ├── exporters/          # Export utilities
 │       ├── features/           # Featurization
 │       ├── io/                 # Data sources
-│       ├── labeling/           # Label generation
 │       ├── models/             # Model training
-│       ├── negatives/          # Negative sampling
 │       ├── splits/             # Splitting strategies
+│       ├── training/           # End-to-end orchestration
 │       └── visualization.py    # Plotting
 ├── tests/
 │   ├── test_audits.py
@@ -248,7 +244,7 @@ class TestDataCleaningEdgeCases:
 ### Fixtures
 
 ```python
-# tests/conftest.py
+# Example: tests/conftest.py (create if it does not already exist)
 import pytest
 import pandas as pd
 

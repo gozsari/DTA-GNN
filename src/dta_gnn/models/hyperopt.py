@@ -67,7 +67,7 @@ def _require_wandb():
         return wandb
     except ImportError as e:
         raise ImportError(
-            "wandb is not installed. Install with: `pip install 'dta_gnn[wandb]'`"
+            "wandb is not installed. Install with: `pip install wandb`"
         ) from e
 
 

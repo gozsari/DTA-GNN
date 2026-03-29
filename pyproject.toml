@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Intended Audience :: Science/Research",
 ]
-keywords = ["drug-target affinity", "graph neural networks", "cheml", "molecular graphs", "machine learning", "drug discovery"]
+keywords = ["drug-target affinity", "graph neural networks", "chembl", "molecular graphs", "machine learning", "drug discovery"]
 requires-python = ">=3.10"
 dependencies = [
     "typer>=0.9.0",

@@ -25,8 +25,8 @@ def _require_pyg() -> None:
         import torch_geometric  # noqa: F401
     except Exception as e:  # pragma: no cover
         raise ImportError(
-            "GNN features require optional dependencies. "
-            "Install with: `pip install 'dta_gnn[molecule-gnn]'`"
+            "GNN features require PyTorch and PyTorch Geometric. "
+            "Install with: `pip install torch torch-geometric`"
         ) from e
 
 

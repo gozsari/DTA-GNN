@@ -20,7 +20,7 @@ dta_gnn --help
 
 | Command | Description |
 |---------|-------------|
-| `audit` | Run audit on an existing dataset |
+| `audit` | Run audit on an existing dataset *(coming soon)* |
 | `setup` | Download and set up ChEMBL database |
 | `ui` | Launch the Gradio web interface |
 | `train-gnn` | Run end-to-end GNN training pipeline from a UniProt ID |
@@ -60,6 +60,10 @@ dta_gnn setup --version 36 --dir ./chembl_dbs
 ```
 
 ## audit
+
+!!! warning "Coming Soon"
+    The `audit` CLI command is a placeholder. For now, use the Python API
+    (`audit_scaffold_leakage`, `audit_target_leakage`) or the Web UI instead.
 
 Run leakage audits on an existing dataset file.
 
