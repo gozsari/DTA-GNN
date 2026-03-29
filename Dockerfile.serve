@@ -24,7 +24,7 @@ COPY src/ ./src/
 COPY assets/ ./assets/
 COPY main.py $HOME/app/main.py
 
-RUN pip install --no-cache-dir -e ".[molecule-gnn,wandb]"
+RUN pip install --no-cache-dir -e .
 
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 ENV GRADIO_TEMP_DIR="$HOME/app/temp/"

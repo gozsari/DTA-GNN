@@ -30,8 +30,7 @@ COPY assets/ ./assets/
 COPY main.py ./main.py
 
 # Install dependencies
-# Note: we install with [molecule-gnn] extras for full functionality
-RUN pip install --no-cache-dir -e ".[molecule-gnn]"
+RUN pip install --no-cache-dir -e .
 
 # Set up directories and permissions
 RUN mkdir -p "$HOME/app/temp" "$HOME/app/runs" "$HOME/app/chembl_dbs" \
