@@ -1,2 +1,0 @@
-trial,architecture,dropout,gin_conv_mlp_layers,gin_eps,gin_train_eps,lr,num_layers,pooling,residual,weight_decay,val_score
-63,gin,0.003203387831902971,2,0.39542384091893434,True,0.0006801938649661502,5,attention,True,5.9597596738200395e-06,-0.6900066362602416

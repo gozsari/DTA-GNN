@@ -1,2 +1,0 @@
-trial,architecture,dropout,lr,num_layers,pooling,residual,sage_aggr,weight_decay,val_score
-158,sage,0.033848459145870494,0.0023593632960352963,5,max,True,max,2.2201587892657905e-05,-1.0068188690178772
