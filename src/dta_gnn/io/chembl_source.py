@@ -25,6 +25,7 @@ class ChemblSource(ABC):
         - standard_units
         - standard_relation
         - pchembl_value (optional)
+        - canonical_smiles (optional, avoids a separate fetch_molecules call)
         """
         pass
 

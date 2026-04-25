@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
 from dta_gnn import __version__
 from dta_gnn.features.molecule_graphs import build_graphs_2d, smiles_to_graph_2d
@@ -776,7 +777,7 @@ def train_gnn_on_run(
     best_encoder_state = None
     best_val_metrics = None  # Store best validation metrics for logging
 
-    print(f"Training GNN for {cfg.epochs} epochs (batch_size={cfg.batch_size}, lr={cfg.lr:.6f})...")
+    logger.info(f"Training GNN for {cfg.epochs} epochs (batch_size={cfg.batch_size}, lr={cfg.lr:.6f})...")
     for epoch in range(int(cfg.epochs)):
         model.train()
         epoch_losses = []
@@ -818,7 +819,7 @@ def train_gnn_on_run(
                     best_encoder_state = {k: v.cpu().clone() for k, v in model.encoder.state_dict().items()}
                     best_val_metrics = val_metrics.copy()
                     score_str = f"R²={val_metrics['r2']:.4f}" if val_metrics["r2"] is not None else f"RMSE={val_metrics['rmse']:.4f}"
-                    print(f"  ✓ New best model at epoch {best_epoch} (val_{score_str})")
+                    logger.info(f"New best model at epoch {best_epoch} (val_{score_str})")
 
         if val_loss is not None:
             scheduler.step(val_loss)
@@ -842,18 +843,18 @@ def train_gnn_on_run(
         
         if (epoch + 1) % max(1, int(cfg.epochs) // 5) == 0 or epoch == 0:
             val_str = f", val_loss: {val_loss:.4f}" if val_loss is not None else ""
-            print(f"  Epoch {epoch + 1}/{cfg.epochs} completed (train_loss: {avg_loss:.4f}{val_str})")
+            logger.info(f"Epoch {epoch + 1}/{cfg.epochs} completed (train_loss: {avg_loss:.4f}{val_str})")
 
     # Load best model if available
     if best_model_state is not None and val_loader is not None and best_val_metrics is not None:
         score_str = f"R²={best_val_metrics['r2']:.4f}" if best_val_metrics.get("r2") is not None else f"RMSE={best_val_metrics['rmse']:.4f}"
-        print(f"Loading best model from epoch {best_epoch} (val_{score_str})...")
+        logger.info(f"Loading best model from epoch {best_epoch} (val_{score_str})...")
         model.load_state_dict(best_model_state)
         model.encoder.load_state_dict(best_encoder_state)
     else:
-        print("Using final epoch model (no validation set for checkpointing)")
+        logger.info("Using final epoch model (no validation set for checkpointing)")
 
-    print("Training complete. Evaluating...")
+    logger.info("Training complete. Evaluating...")
     # Evaluation + predictions
     model.eval()
 

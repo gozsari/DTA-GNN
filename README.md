@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo3.png" alt="DTA-GNN Logo" width="400"/>
+<img src="https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/logo3.png" alt="DTA-GNN Logo" width="400"/>
 
 # DTA-GNN: Target-Specific Binding Affinity Dataset Builder and GNN Trainer
 
@@ -30,7 +30,7 @@ DTA-GNN is an **end-to-end toolkit** for Drug-Target Affinity prediction that:
 
 <div align="center">
 
-![DTA-GNN Overview](assets/overview.png)
+![DTA-GNN Overview](https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/overview.png)
 *Figure 1. DTA-GNN workflow: clean data from ChEMBL, molecular graph conversion, scaffold-aware splitting, and GNN training.*
 </div>
 
@@ -367,10 +367,13 @@ MIT License - see [LICENSE](LICENSE)
 ## 📚 Citation
 
 ```bibtex
-@software{dta_gnn,
-  title = {DTA-GNN: Target-Specific Binding Affinity Dataset Builder and GNN Trainer},
-  author = {Özsari, Gökhan},
-  year = {2026},
-  url = {https://github.com/gozsari/DTA-GNN}
+@article{ozsari2026dta,
+  title={DTA-GNN: a toolkit for constructing target-specific drug--target affinity datasets and training graph neural networks},
+  author={Özsari, Gökhan and Rifaioğlu, Ahmet Süreyya and Acar, Aybar Can and Doğan, Tunca and Atalay, M Volkan},
+  journal={SoftwareX},
+  volume={34},
+  pages={102671},
+  year={2026},
+  publisher={Elsevier}
 }
 ```

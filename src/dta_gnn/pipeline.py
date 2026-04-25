@@ -70,10 +70,13 @@ class Pipeline:
             return pd.DataFrame()
         dataset_df["label"] = dataset_df["pchembl_value"]
 
-        # Molecules
-        mol_ids = dataset_df["molecule_chembl_id"].unique().tolist()
-        df_mols = self.source.fetch_molecules(mol_ids)
-        dataset_df = dataset_df.merge(df_mols, on="molecule_chembl_id", how="left")
+        # Molecules — prefer SMILES already fetched with activities
+        if "canonical_smiles" in dataset_df.columns:
+            dataset_df = dataset_df.rename(columns={"canonical_smiles": "smiles"})
+        else:
+            mol_ids = dataset_df["molecule_chembl_id"].unique().tolist()
+            df_mols = self.source.fetch_molecules(mol_ids)
+            dataset_df = dataset_df.merge(df_mols, on="molecule_chembl_id", how="left")
 
         if featurize:
             dataset_df = calculate_morgan_fingerprints(

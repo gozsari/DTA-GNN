@@ -15,6 +15,7 @@ from rdkit import DataStructs
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -1021,8 +1022,8 @@ def optimize_gnn_wandb(
         trial_idx = int(trial_counter["i"])
         trial_counter["i"] = trial_idx + 1
         
-        print(f"\n[Trial {trial_idx}] Starting GNN training...")
-        print(f"[Trial {trial_idx}] Run ID: {run.id}")
+        logger.info(f"[Trial {trial_idx}] Starting GNN training...")
+        logger.info(f"[Trial {trial_idx}] Run ID: {run.id}")
 
         # Pull optimized params from wandb.config; fill the rest from defaults.
         sampled = dict(getattr(wandb, "config", {}) or {})
@@ -1160,10 +1161,10 @@ def optimize_gnn_wandb(
         if metadata_path.exists():
             shutil.copy2(metadata_path, trial_dir / "metadata.json")
 
-        print(f"[Trial {trial_idx}] Training GNN with config: epochs={cfg.epochs}, batch_size={cfg.batch_size}, lr={cfg.lr:.6f}, embedding_dim={cfg.embedding_dim}")
+        logger.info(f"[Trial {trial_idx}] Training GNN with config: epochs={cfg.epochs}, batch_size={cfg.batch_size}, lr={cfg.lr:.6f}, embedding_dim={cfg.embedding_dim}")
         res = train_gnn_on_run(trial_dir, config=cfg, wandb_run=run)
         score = _score_from_gnn_metrics(res.task_type, res.metrics)
-        print(f"[Trial {trial_idx}] Training complete. Score: {score:.4f}")
+        logger.info(f"[Trial {trial_idx}] Training complete. Score: {score:.4f}")
 
         # Log all metrics from all splits
         all_metrics = {}
@@ -1218,15 +1219,15 @@ def optimize_gnn_wandb(
             best_trial_number = int(trial_idx)
             # Return the *sampled* params plus fixed architecture for reproducibility.
             best_params = {"architecture": arch, **{k: v for k, v in sampled.items()}}
-            print(f"[Trial {trial_idx}] New best score: {best_score:.4f} (trial #{best_trial_number})")
+            logger.info(f"[Trial {trial_idx}] New best score: {best_score:.4f} (trial #{best_trial_number})")
         else:
-            print(f"[Trial {trial_idx}] Score: {score:.4f} (best so far: {best_score:.4f})")
+            logger.info(f"[Trial {trial_idx}] Score: {score:.4f} (best so far: {best_score:.4f})")
 
-    print(f"\n{'='*60}")
-    print(f"Starting W&B sweep with {config.n_trials} trials")
-    print(f"Sweep ID: {sweep_id}")
-    print(f"Architecture: {arch}")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info(f"Starting W&B sweep with {config.n_trials} trials")
+    logger.info(f"Sweep ID: {sweep_id}")
+    logger.info(f"Architecture: {arch}")
+    logger.info(f"{'='*60}\n")
     
     wandb.agent(sweep_id, function=_trial_fn, count=int(config.n_trials))
 
@@ -1234,11 +1235,11 @@ def optimize_gnn_wandb(
     with open(best_params_path, "w") as f:
         json.dump(best_params, f, indent=2)
 
-    print(f"\n{'='*60}")
-    print(f"Sweep completed!")
-    print(f"Best score: {best_score:.4f} (trial #{best_trial_number})")
-    print(f"Best params saved to: {best_params_path}")
-    print(f"{'='*60}\n")
+    logger.info(f"\n{'='*60}")
+    logger.info("Sweep completed!")
+    logger.info(f"Best score: {best_score:.4f} (trial #{best_trial_number})")
+    logger.info(f"Best params saved to: {best_params_path}")
+    logger.info(f"{'='*60}\n")
 
     return HyperoptResult(
         run_dir=run_dir,

@@ -132,6 +132,7 @@ class ChemblWebSource(ChemblSource):
                     "standard_relation": act.get("standard_relation", "="),
                     "pchembl_value": act.get("pchembl_value"),
                     "year": act.get("document_year"),
+                    "canonical_smiles": act.get("canonical_smiles"),
                 }
             )
             count += 1

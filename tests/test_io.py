@@ -29,6 +29,8 @@ def test_web_source_activities():
                     "standard_units": "nM",
                     "standard_relation": "=",
                     "pchembl_value": "7.0",
+                    "document_year": 2020,
+                    "canonical_smiles": "CCO",
                 }
             ]
         )
@@ -60,6 +62,9 @@ def test_sqlite_source_activities(tmp_path):
     cursor.execute(
         "CREATE TABLE activities (molregno INTEGER, assay_id INTEGER, doc_id INTEGER, standard_type TEXT, standard_value REAL, standard_units TEXT, standard_relation TEXT, pchembl_value REAL)"
     )
+    cursor.execute(
+        "CREATE TABLE compound_structures (molregno INTEGER, canonical_smiles TEXT)"
+    )
 
     cursor.execute("INSERT INTO molecule_dictionary VALUES (1, 'CHEMBL1')")
     cursor.execute("INSERT INTO target_dictionary VALUES (1, 'CHEMBL2', 'Human')")
@@ -67,6 +72,9 @@ def test_sqlite_source_activities(tmp_path):
     cursor.execute("INSERT INTO docs VALUES (1, 2020)")
     cursor.execute(
         "INSERT INTO activities VALUES (1, 1, 1, 'IC50', 100, 'nM', '=', 7.0)"
+    )
+    cursor.execute(
+        "INSERT INTO compound_structures VALUES (1, 'CC(=O)Oc1ccccc1C(=O)O')"
     )
 
     conn.commit()
@@ -78,6 +86,7 @@ def test_sqlite_source_activities(tmp_path):
     assert len(df) == 1
     assert df.iloc[0]["molecule_chembl_id"] == "CHEMBL1"
     assert df.iloc[0]["standard_value"] == 100.0  # SQLite stores as REAL
+    assert df.iloc[0]["canonical_smiles"] == "CC(=O)Oc1ccccc1C(=O)O"
 
 
 class TestChemblWebSourceAdvanced:
@@ -121,6 +130,9 @@ class TestChemblSQLiteSourceAdvanced:
         cursor.execute(
             "CREATE TABLE activities (molregno INTEGER, assay_id INTEGER, doc_id INTEGER, standard_type TEXT, standard_value REAL, standard_units TEXT, standard_relation TEXT, pchembl_value REAL)"
         )
+        cursor.execute(
+            "CREATE TABLE compound_structures (molregno INTEGER, canonical_smiles TEXT)"
+        )
 
         cursor.execute("INSERT INTO molecule_dictionary VALUES (1, 'CHEMBL1')")
         cursor.execute("INSERT INTO molecule_dictionary VALUES (2, 'CHEMBL2')")
@@ -135,6 +147,8 @@ class TestChemblSQLiteSourceAdvanced:
         cursor.execute(
             "INSERT INTO activities VALUES (2, 2, 1, 'Ki', 50, 'nM', '=', 7.3)"
         )
+        cursor.execute("INSERT INTO compound_structures VALUES (1, 'CCO')")
+        cursor.execute("INSERT INTO compound_structures VALUES (2, 'CCN')")
 
         conn.commit()
         conn.close()

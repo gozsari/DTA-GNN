@@ -15,6 +15,7 @@ import threading
 import time
 import zipfile
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -64,6 +65,21 @@ APP_CSS = """
     border: 1px solid var(--border-color-primary);
 }
 """
+
+
+@contextmanager
+def _capture_logs():
+    """Temporarily add a loguru sink that writes to a StringIO buffer."""
+    log_stream = io.StringIO()
+    sink_id = logger.add(
+        log_stream,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {message}",
+        level="INFO",
+    )
+    try:
+        yield log_stream
+    finally:
+        logger.remove(sink_id)
 
 
 def _resolve_current_run_dir(*, hint: str = "Build a dataset first.") -> Path:
@@ -222,19 +238,27 @@ def build_dataset(
                         pipeline, "last_targets_csv", None
                     )
 
-                # Compounds
+                # Compounds — derive from dataset if SMILES already present
                 try:
-                    unique_mols = sorted(
-                        set(
-                            df_local["molecule_chembl_id"].dropna().astype(str).tolist()
+                    if "smiles" in df_local.columns:
+                        compounds_df = (
+                            df_local[["molecule_chembl_id", "smiles"]]
+                            .drop_duplicates(subset=["molecule_chembl_id"])
+                            .dropna(subset=["smiles"])
+                            .reset_index(drop=True)
                         )
-                    )
-                    compounds_df = pipeline.source.fetch_molecules(unique_mols)
+                    else:
+                        unique_mols = sorted(
+                            set(
+                                df_local["molecule_chembl_id"].dropna().astype(str).tolist()
+                            )
+                        )
+                        compounds_df = pipeline.source.fetch_molecules(unique_mols)
                     compounds_df.to_csv(compounds_csv_path, index=False)
                     pipeline.last_compounds_csv = str(compounds_csv_path)
                 except Exception as exc:
                     logger.warning(
-                        "Failed to fetch/save compounds CSV (ChEMBL API may be unavailable): {}", exc
+                        "Failed to save compounds CSV: {}", exc
                     )
                     pipeline.last_compounds_csv = getattr(
                         pipeline, "last_compounds_csv", None
@@ -866,158 +890,157 @@ def train_model(
 ):
     run_dir = _resolve_current_run_dir(hint="Build a dataset first.")
 
-    try:
-        mt = (model_type or "").strip()
-        if mt.startswith("RF") or mt.lower().startswith("randomforest"):
-            result = train_random_forest_on_run(
-                run_dir, n_estimators=int(rf_n_estimators)
-            )
+    with _capture_logs() as log_stream:
+        try:
+            mt = (model_type or "").strip()
+            if mt.startswith("RF") or mt.lower().startswith("randomforest"):
+                result = train_random_forest_on_run(
+                    run_dir, n_estimators=int(rf_n_estimators)
+                )
 
-            artifacts = collect_artifacts(run_dir=str(result.run_dir))
-            # Make the generic model download point at the selected model.
-            artifacts["model"] = str(result.model_path)
-            artifacts["model_metrics"] = str(result.metrics_path)
-            artifacts["model_predictions"] = str(result.predictions_path)
+                artifacts = collect_artifacts(run_dir=str(result.run_dir))
+                artifacts["model"] = str(result.model_path)
+                artifacts["model_metrics"] = str(result.metrics_path)
+                artifacts["model_predictions"] = str(result.predictions_path)
 
-            metrics_df = pd.DataFrame(
-                [
-                    {"split": k, **(v if isinstance(v, dict) else {})}
-                    for k, v in (result.metrics.get("splits") or {}).items()
-                ]
-            )
-            preds_preview = preview_csv(str(result.predictions_path), n=50)
-            task_type = str(result.task_type)
+                metrics_df = pd.DataFrame(
+                    [
+                        {"split": k, **(v if isinstance(v, dict) else {})}
+                        for k, v in (result.metrics.get("splits") or {}).items()
+                    ]
+                )
+                preds_preview = preview_csv(str(result.predictions_path), n=50)
+                task_type = str(result.task_type)
 
-            model_path = str(result.model_path)
-            metrics_path = str(result.metrics_path)
-            predictions_path = str(result.predictions_path)
+                model_path = str(result.model_path)
+                metrics_path = str(result.metrics_path)
+                predictions_path = str(result.predictions_path)
 
-        elif mt.startswith("SVR"):
-            from dta_gnn.models.svr import train_svr_on_run
+            elif mt.startswith("SVR"):
+                from dta_gnn.models.svr import train_svr_on_run
 
-            res = train_svr_on_run(
-                run_dir,
-                kernel=str(svr_kernel),
-                C=float(svr_c),
-                epsilon=float(svr_epsilon),
-            )
+                res = train_svr_on_run(
+                    run_dir,
+                    kernel=str(svr_kernel),
+                    C=float(svr_c),
+                    epsilon=float(svr_epsilon),
+                )
 
-            artifacts = collect_artifacts(run_dir=str(res.run_dir))
-            artifacts["model"] = str(res.model_path)
-            artifacts["model_metrics"] = str(res.metrics_path)
-            artifacts["model_predictions"] = str(res.predictions_path)
+                artifacts = collect_artifacts(run_dir=str(res.run_dir))
+                artifacts["model"] = str(res.model_path)
+                artifacts["model_metrics"] = str(res.metrics_path)
+                artifacts["model_predictions"] = str(res.predictions_path)
 
-            metrics_df = pd.DataFrame(
-                [
-                    {"split": k, **(v if isinstance(v, dict) else {})}
-                    for k, v in (res.metrics.get("splits") or {}).items()
-                ]
-            )
-            preds_preview = preview_csv(str(res.predictions_path), n=50)
-            task_type = str(res.task_type)
+                metrics_df = pd.DataFrame(
+                    [
+                        {"split": k, **(v if isinstance(v, dict) else {})}
+                        for k, v in (res.metrics.get("splits") or {}).items()
+                    ]
+                )
+                preds_preview = preview_csv(str(res.predictions_path), n=50)
+                task_type = str(res.task_type)
 
-            model_path = str(res.model_path)
-            metrics_path = str(res.metrics_path)
-            predictions_path = str(res.predictions_path)
+                model_path = str(res.model_path)
+                metrics_path = str(res.metrics_path)
+                predictions_path = str(res.predictions_path)
 
-        else:
-            from dta_gnn.models.gnn import GnnTrainConfig, train_gnn_on_run
+            else:
+                from dta_gnn.models.gnn import GnnTrainConfig, train_gnn_on_run
 
-            # Device is automatically detected (MPS > CUDA > CPU)
-            # When device=None, _get_device() will auto-detect the best available device
-            cfg = GnnTrainConfig(
-                architecture=str(gnn_arch),
-                epochs=int(gnn_epochs),
-                batch_size=int(gnn_batch_size),
-                embedding_dim=int(gnn_embedding_dim),
-                hidden_dim=int(gnn_hidden_dim),
-                num_layers=int(gnn_num_layers),
-                lr=float(gnn_lr),
-                dropout=float(gnn_dropout),
-                pooling=str(gin_pooling),
-                residual=bool(gnn_residual),
-                head_mlp_layers=int(gnn_head_mlp_layers),
-                gin_conv_mlp_layers=int(gin_conv_mlp_layers),
-                gin_train_eps=bool(gin_train_eps),
-                gin_eps=float(gin_eps),
-                # device=None by default - auto-detects: MPS > CUDA > CPU
-            )
-            gnn_res = train_gnn_on_run(run_dir, config=cfg)
+                cfg = GnnTrainConfig(
+                    architecture=str(gnn_arch),
+                    epochs=int(gnn_epochs),
+                    batch_size=int(gnn_batch_size),
+                    embedding_dim=int(gnn_embedding_dim),
+                    hidden_dim=int(gnn_hidden_dim),
+                    num_layers=int(gnn_num_layers),
+                    lr=float(gnn_lr),
+                    dropout=float(gnn_dropout),
+                    pooling=str(gin_pooling),
+                    residual=bool(gnn_residual),
+                    head_mlp_layers=int(gnn_head_mlp_layers),
+                    gin_conv_mlp_layers=int(gin_conv_mlp_layers),
+                    gin_train_eps=bool(gin_train_eps),
+                    gin_eps=float(gin_eps),
+                )
+                gnn_res = train_gnn_on_run(run_dir, config=cfg)
 
-            artifacts = collect_artifacts(run_dir=str(gnn_res.run_dir))
-            # Make the generic model download point at the selected model.
-            artifacts["model"] = str(gnn_res.model_path)
-            artifacts["model_metrics"] = str(gnn_res.metrics_path)
-            artifacts["model_predictions"] = str(gnn_res.predictions_path)
+                artifacts = collect_artifacts(run_dir=str(gnn_res.run_dir))
+                artifacts["model"] = str(gnn_res.model_path)
+                artifacts["model_metrics"] = str(gnn_res.metrics_path)
+                artifacts["model_predictions"] = str(gnn_res.predictions_path)
 
-            metrics_df = pd.DataFrame(
-                [
-                    {"split": k, **(v if isinstance(v, dict) else {})}
-                    for k, v in (gnn_res.metrics.get("splits") or {}).items()
-                ]
-            )
-            preds_preview = preview_csv(str(gnn_res.predictions_path), n=50)
-            task_type = str(gnn_res.task_type)
+                metrics_df = pd.DataFrame(
+                    [
+                        {"split": k, **(v if isinstance(v, dict) else {})}
+                        for k, v in (gnn_res.metrics.get("splits") or {}).items()
+                    ]
+                )
+                preds_preview = preview_csv(str(gnn_res.predictions_path), n=50)
+                task_type = str(gnn_res.task_type)
 
-            model_path = str(gnn_res.model_path)
-            metrics_path = str(gnn_res.metrics_path)
-            predictions_path = str(gnn_res.predictions_path)
-    except Exception as e:
-        raise gr.Error(str(e))
+                model_path = str(gnn_res.model_path)
+                metrics_path = str(gnn_res.metrics_path)
+                predictions_path = str(gnn_res.predictions_path)
+        except Exception as e:
+            raise gr.Error(str(e))
 
-    zip_path = write_artifacts_zip_from_manifest(artifacts=artifacts)
-    artifacts["zip"] = zip_path
+        zip_path = write_artifacts_zip_from_manifest(artifacts=artifacts)
+        artifacts["zip"] = zip_path
 
-    return (
-        task_type,
-        metrics_df,
-        preds_preview,
-        model_path,
-        metrics_path,
-        predictions_path,
-        str(run_dir.resolve()),
-        artifacts_table(artifacts),
-        zip_path,
-    )
+        return (
+            task_type,
+            metrics_df,
+            preds_preview,
+            model_path,
+            metrics_path,
+            predictions_path,
+            str(run_dir.resolve()),
+            artifacts_table(artifacts),
+            zip_path,
+            log_stream.getvalue(),
+        )
 
 
 def extract_gin_embeddings(batch_size: int):
     run_dir = _resolve_current_run_dir(hint="Train a GNN first.")
 
-    try:
-        from dta_gnn.models.gnn import extract_gnn_embeddings_on_run
+    with _capture_logs() as log_stream:
+        try:
+            from dta_gnn.models.gnn import extract_gnn_embeddings_on_run
 
-        res = extract_gnn_embeddings_on_run(run_dir, batch_size=int(batch_size))
-    except Exception as e:
-        raise gr.Error(str(e))
+            res = extract_gnn_embeddings_on_run(run_dir, batch_size=int(batch_size))
+        except Exception as e:
+            raise gr.Error(str(e))
 
-    artifacts = collect_artifacts(run_dir=str(res.run_dir))
-    zip_path = write_artifacts_zip_from_manifest(artifacts=artifacts)
-    artifacts["zip"] = zip_path
+        artifacts = collect_artifacts(run_dir=str(res.run_dir))
+        zip_path = write_artifacts_zip_from_manifest(artifacts=artifacts)
+        artifacts["zip"] = zip_path
 
-    preview_df: pd.DataFrame | None = None
-    try:
-        import numpy as np
+        preview_df: pd.DataFrame | None = None
+        try:
+            import numpy as np
 
-        npz = np.load(str(res.embeddings_path), allow_pickle=True)
-        ids = npz["molecule_chembl_id"].astype(object)
-        emb = npz["embeddings"].astype(float)
-        cols: dict[str, object] = {"molecule_chembl_id": ids}
-        if emb.ndim == 2:
-            for j in range(min(8, emb.shape[1])):
-                cols[f"e{j}"] = emb[:, j]
-        preview_df = pd.DataFrame(cols).head(50)
-    except Exception:
-        preview_df = None
+            npz = np.load(str(res.embeddings_path), allow_pickle=True)
+            ids = npz["molecule_chembl_id"].astype(object)
+            emb = npz["embeddings"].astype(float)
+            cols: dict[str, object] = {"molecule_chembl_id": ids}
+            if emb.ndim == 2:
+                for j in range(min(8, emb.shape[1])):
+                    cols[f"e{j}"] = emb[:, j]
+            preview_df = pd.DataFrame(cols).head(50)
+        except Exception:
+            preview_df = None
 
-    return (
-        preview_df,
-        str(res.embeddings_path),
-        str(res.run_dir),
-        artifacts_table(artifacts),
-        artifacts.get("molecule_embeddings"),
-        zip_path,
-    )
+        return (
+            preview_df,
+            str(res.embeddings_path),
+            str(res.run_dir),
+            artifacts_table(artifacts),
+            artifacts.get("molecule_embeddings"),
+            zip_path,
+            log_stream.getvalue(),
+        )
 
 
 def run_hyperopt(
@@ -1088,190 +1111,183 @@ def run_hyperopt(
 
     run_dir = _resolve_current_run_dir(hint="Build a dataset first.")
 
-    try:
-        from dta_gnn.models.hyperopt import (
-            HyperoptConfig,
-            optimize_gnn_wandb,
-            optimize_random_forest_wandb,
-            optimize_svr_wandb,
+    with _capture_logs() as log_stream:
+        try:
+            from dta_gnn.models.hyperopt import (
+                HyperoptConfig,
+                optimize_gnn_wandb,
+                optimize_random_forest_wandb,
+                optimize_svr_wandb,
+            )
+
+            project = str(wandb_project or "dta_gnn").strip() or "dta_gnn"
+            entity = str(wandb_entity).strip() or None
+            api_key = str(wandb_api_key).strip() or None
+            sweep_name = str(wandb_sweep_name).strip() or None
+
+            if (model_type or "").startswith("RandomForest"):
+                cfg = HyperoptConfig(
+                    model_type="RandomForest",
+                    n_trials=int(n_trials),
+                    n_jobs=1,
+                    rf_optimize_n_estimators=bool(rf_opt_n_est),
+                    rf_n_estimators_min=int(rf_n_est_min),
+                    rf_n_estimators_max=int(rf_n_est_max),
+                    rf_optimize_max_depth=bool(rf_opt_depth),
+                    rf_max_depth_min=int(rf_depth_min),
+                    rf_max_depth_max=int(rf_depth_max),
+                    rf_optimize_min_samples_split=bool(rf_opt_min_samp),
+                    rf_min_samples_split_min=int(rf_min_samp_min),
+                    rf_min_samples_split_max=int(rf_min_samp_max),
+                )
+
+                result = optimize_random_forest_wandb(
+                    run_dir,
+                    config=cfg,
+                    project=project,
+                    entity=entity,
+                    api_key=api_key,
+                    sweep_name=sweep_name,
+                )
+
+            elif (model_type or "").startswith("SVR"):
+                cfg = HyperoptConfig(
+                    model_type="SVR",
+                    n_trials=int(n_trials),
+                    n_jobs=1,
+                    svr_optimize_C=bool(svr_opt_c),
+                    svr_C_min=float(svr_c_min),
+                    svr_C_max=float(svr_c_max),
+                    svr_optimize_epsilon=bool(svr_opt_epsilon),
+                    svr_epsilon_min=float(svr_epsilon_min),
+                    svr_epsilon_max=float(svr_epsilon_max),
+                    svr_optimize_kernel=bool(svr_opt_kernel),
+                    svr_kernel_choices=list(svr_kernel_choices or []),
+                    svr_kernel_default=str(svr_kernel_default or "rbf"),
+                )
+
+                result = optimize_svr_wandb(
+                    run_dir,
+                    config=cfg,
+                    project=project,
+                    entity=entity,
+                    api_key=api_key,
+                    sweep_name=sweep_name,
+                )
+
+            else:
+                cfg = HyperoptConfig(
+                    model_type="GNN",
+                    n_trials=int(n_trials),
+                    n_jobs=1,
+                    architecture=str(gnn_arch or "gin").strip().lower(),
+                    optimize_epochs=bool(gnn_opt_epochs),
+                    epochs_min=int(gnn_epochs_min),
+                    epochs_max=int(gnn_epochs_max),
+                    optimize_lr=bool(gnn_opt_lr),
+                    lr_min=float(gnn_lr_min),
+                    lr_max=float(gnn_lr_max),
+                    optimize_batch_size=bool(gnn_opt_batch),
+                    batch_size_min=int(gnn_batch_min),
+                    batch_size_max=int(gnn_batch_max),
+                    optimize_embedding_dim=bool(gnn_opt_emb),
+                    embedding_dim_min=int(gnn_emb_min),
+                    embedding_dim_max=int(gnn_emb_max),
+                    optimize_hidden_dim=bool(gnn_opt_hidden),
+                    hidden_dim_min=int(gnn_hidden_min),
+                    hidden_dim_max=int(gnn_hidden_max),
+                    optimize_dropout=bool(gnn_opt_dropout),
+                    dropout_min=float(gnn_dropout_min),
+                    dropout_max=float(gnn_dropout_max),
+                    dropout_default=float(gnn_dropout_default),
+                    optimize_pooling=bool(gnn_opt_pooling),
+                    pooling_choices=list(gnn_pooling_choices or []),
+                    pooling_default=str(gnn_pooling_default or "add"),
+                    optimize_residual=bool(gnn_opt_residual),
+                    residual_default=bool(gnn_residual_default),
+                    optimize_head_mlp_layers=bool(gnn_opt_head_mlp_layers),
+                    head_mlp_layers_min=int(gnn_head_mlp_layers_min),
+                    head_mlp_layers_max=int(gnn_head_mlp_layers_max),
+                    head_mlp_layers_default=int(gnn_head_mlp_layers_default),
+                    optimize_gin_conv_mlp_layers=bool(gnn_opt_gin_conv_mlp_layers),
+                    gin_conv_mlp_layers_min=int(gnn_gin_conv_mlp_layers_min),
+                    gin_conv_mlp_layers_max=int(gnn_gin_conv_mlp_layers_max),
+                    gin_conv_mlp_layers_default=int(gnn_gin_conv_mlp_layers_default),
+                    optimize_gin_train_eps=False,
+                    gin_train_eps_default=False,
+                    optimize_gin_eps=False,
+                    gin_eps_min=0.0,
+                    gin_eps_max=1.0,
+                    gin_eps_default=0.0,
+                    optimize_gat_heads=False,
+                    gat_heads_min=1,
+                    gat_heads_max=8,
+                    gat_heads_default=1,
+                    optimize_sage_aggr=False,
+                    sage_aggr_choices=["mean", "max", "add"],
+                    sage_aggr_default="mean",
+                    optimize_transformer_heads=False,
+                    transformer_heads_min=1,
+                    transformer_heads_max=8,
+                    transformer_heads_default=1,
+                    optimize_tag_k=False,
+                    tag_k_min=1,
+                    tag_k_max=3,
+                    tag_k_default=1,
+                    optimize_arma_stacks=False,
+                    arma_num_stacks_min=1,
+                    arma_num_stacks_max=3,
+                    arma_num_stacks_default=1,
+                    optimize_arma_layers=False,
+                    arma_num_layers_min=1,
+                    arma_num_layers_max=3,
+                    arma_num_layers_default=1,
+                    optimize_cheb_k=False,
+                    cheb_k_min=1,
+                    cheb_k_max=3,
+                    cheb_k_default=1,
+                    optimize_supergat_heads=False,
+                    supergat_heads_min=1,
+                    supergat_heads_max=8,
+                    supergat_heads_default=1,
+                    optimize_supergat_attention_type=False,
+                    supergat_attention_type_choices=["MX", "dot", "mlp"],
+                    supergat_attention_type_default="MX",
+                )
+
+                result = optimize_gnn_wandb(
+                    run_dir,
+                    config=cfg,
+                    project=project,
+                    entity=entity,
+                    api_key=api_key,
+                    sweep_name=sweep_name,
+                )
+
+        except Exception as e:
+            raise gr.Error(str(e))
+
+        best_params_df = pd.DataFrame([result.best_params])
+        summary = (
+            "### Hyperparameter Optimization Results\n"
+            f"- **Best Trial**: #{result.best_trial_number}\n"
+            f"- **Total Trials**: {result.n_trials}\n"
+            f"- **Best Score**: {result.best_value:.4f}\n"
+            "- **Best Parameters**:\n"
+            "```json\n"
+            f"{json.dumps(result.best_params, indent=2)}\n"
+            "```\n"
         )
 
-        project = str(wandb_project or "dta_gnn").strip() or "dta_gnn"
-        entity = str(wandb_entity).strip() or None
-        api_key = str(wandb_api_key).strip() or None
-        sweep_name = str(wandb_sweep_name).strip() or None
-
-        if (model_type or "").startswith("RandomForest"):
-            cfg = HyperoptConfig(
-                model_type="RandomForest",
-                n_trials=int(n_trials),
-                n_jobs=1,
-                rf_optimize_n_estimators=bool(rf_opt_n_est),
-                rf_n_estimators_min=int(rf_n_est_min),
-                rf_n_estimators_max=int(rf_n_est_max),
-                rf_optimize_max_depth=bool(rf_opt_depth),
-                rf_max_depth_min=int(rf_depth_min),
-                rf_max_depth_max=int(rf_depth_max),
-                rf_optimize_min_samples_split=bool(rf_opt_min_samp),
-                rf_min_samples_split_min=int(rf_min_samp_min),
-                rf_min_samples_split_max=int(rf_min_samp_max),
-            )
-
-            result = optimize_random_forest_wandb(
-                run_dir,
-                config=cfg,
-                project=project,
-                entity=entity,
-                api_key=api_key,
-                sweep_name=sweep_name,
-            )
-
-        elif (model_type or "").startswith("SVR"):
-            cfg = HyperoptConfig(
-                model_type="SVR",
-                n_trials=int(n_trials),
-                n_jobs=1,
-                svr_optimize_C=bool(svr_opt_c),
-                svr_C_min=float(svr_c_min),
-                svr_C_max=float(svr_c_max),
-                svr_optimize_epsilon=bool(svr_opt_epsilon),
-                svr_epsilon_min=float(svr_epsilon_min),
-                svr_epsilon_max=float(svr_epsilon_max),
-                svr_optimize_kernel=bool(svr_opt_kernel),
-                svr_kernel_choices=list(svr_kernel_choices or []),
-                svr_kernel_default=str(svr_kernel_default or "rbf"),
-            )
-
-            result = optimize_svr_wandb(
-                run_dir,
-                config=cfg,
-                project=project,
-                entity=entity,
-                api_key=api_key,
-                sweep_name=sweep_name,
-            )
-
-        else:
-            cfg = HyperoptConfig(
-                model_type="GNN",
-                n_trials=int(n_trials),
-                n_jobs=1,
-                architecture=str(gnn_arch or "gin").strip().lower(),
-                optimize_epochs=bool(gnn_opt_epochs),
-                epochs_min=int(gnn_epochs_min),
-                epochs_max=int(gnn_epochs_max),
-                optimize_lr=bool(gnn_opt_lr),
-                lr_min=float(gnn_lr_min),
-                lr_max=float(gnn_lr_max),
-                optimize_batch_size=bool(gnn_opt_batch),
-                batch_size_min=int(gnn_batch_min),
-                batch_size_max=int(gnn_batch_max),
-                optimize_embedding_dim=bool(gnn_opt_emb),
-                embedding_dim_min=int(gnn_emb_min),
-                embedding_dim_max=int(gnn_emb_max),
-                optimize_hidden_dim=bool(gnn_opt_hidden),
-                hidden_dim_min=int(gnn_hidden_min),
-                hidden_dim_max=int(gnn_hidden_max),
-                optimize_dropout=bool(gnn_opt_dropout),
-                dropout_min=float(gnn_dropout_min),
-                dropout_max=float(gnn_dropout_max),
-                dropout_default=float(gnn_dropout_default),
-                optimize_pooling=bool(gnn_opt_pooling),
-                pooling_choices=list(gnn_pooling_choices or []),
-                pooling_default=str(gnn_pooling_default or "add"),
-                optimize_residual=bool(gnn_opt_residual),
-                residual_default=bool(gnn_residual_default),
-                optimize_head_mlp_layers=bool(gnn_opt_head_mlp_layers),
-                head_mlp_layers_min=int(gnn_head_mlp_layers_min),
-                head_mlp_layers_max=int(gnn_head_mlp_layers_max),
-                head_mlp_layers_default=int(gnn_head_mlp_layers_default),
-                optimize_gin_conv_mlp_layers=bool(gnn_opt_gin_conv_mlp_layers),
-                gin_conv_mlp_layers_min=int(gnn_gin_conv_mlp_layers_min),
-                gin_conv_mlp_layers_max=int(gnn_gin_conv_mlp_layers_max),
-                gin_conv_mlp_layers_default=int(gnn_gin_conv_mlp_layers_default),
-                # New parameters for other GNN architectures
-                # GIN specific
-                optimize_gin_train_eps=False, # Assuming these are not yet exposed in UI
-                gin_train_eps_default=False,
-                optimize_gin_eps=False,
-                gin_eps_min=0.0,
-                gin_eps_max=1.0,
-                gin_eps_default=0.0,
-                # GAT specific
-                optimize_gat_heads=False,
-                gat_heads_min=1,
-                gat_heads_max=8,
-                gat_heads_default=1,
-                # SAGE specific
-                optimize_sage_aggr=False,
-                sage_aggr_choices=["mean", "max", "add"],
-                sage_aggr_default="mean",
-                # Transformer specific
-                optimize_transformer_heads=False,
-                transformer_heads_min=1,
-                transformer_heads_max=8,
-                transformer_heads_default=1,
-                # TAG specific
-                optimize_tag_k=False,
-                tag_k_min=1,
-                tag_k_max=3,
-                tag_k_default=1,
-                # ARMA specific
-                optimize_arma_stacks=False,
-                arma_num_stacks_min=1,
-                arma_num_stacks_max=3,
-                arma_num_stacks_default=1,
-                optimize_arma_layers=False,
-                arma_num_layers_min=1,
-                arma_num_layers_max=3,
-                arma_num_layers_default=1,
-                # ChebNet specific
-                optimize_cheb_k=False,
-                cheb_k_min=1,
-                cheb_k_max=3,
-                cheb_k_default=1,
-                # SuperGAT specific
-                optimize_supergat_heads=False,
-                supergat_heads_min=1,
-                supergat_heads_max=8,
-                supergat_heads_default=1,
-                optimize_supergat_attention_type=False,
-                supergat_attention_type_choices=["MX", "dot", "mlp"],
-                supergat_attention_type_default="MX",
-            )
-
-            result = optimize_gnn_wandb(
-                run_dir,
-                config=cfg,
-                project=project,
-                entity=entity,
-                api_key=api_key,
-                sweep_name=sweep_name,
-            )
-
-    except Exception as e:
-        raise gr.Error(str(e))
-
-    best_params_df = pd.DataFrame([result.best_params])
-    summary = (
-        "### Hyperparameter Optimization Results\n"
-        f"- **Best Trial**: #{result.best_trial_number}\n"
-        f"- **Total Trials**: {result.n_trials}\n"
-        f"- **Best Score**: {result.best_value:.4f}\n"
-        "- **Best Parameters**:\n"
-        "```json\n"
-        f"{json.dumps(result.best_params, indent=2)}\n"
-        "```\n"
-    )
-
-    artifacts = collect_artifacts(run_dir=str(result.run_dir))
-    return (
-        best_params_df,
-        summary,
-        str(result.best_params_path),
-        str(result.run_dir),
-        artifacts_table(artifacts),
-    )
+        artifacts = collect_artifacts(run_dir=str(result.run_dir))
+        return (
+            best_params_df,
+            summary,
+            str(result.best_params_path),
+            str(result.run_dir),
+            artifacts_table(artifacts),
+            log_stream.getvalue(),
+        )
 
 
 def run_prediction(
@@ -1285,90 +1301,88 @@ def run_prediction(
 
     run_dir = _resolve_current_run_dir(hint="Train a model first.")
 
-    smiles_list: list[str] = []
-    mol_ids: list[str] = []
+    with _capture_logs() as log_stream:
+        smiles_list: list[str] = []
+        mol_ids: list[str] = []
 
-    if csv_file:
-        try:
-            df = pd.read_csv(csv_file)
-            if "smiles" not in df.columns:
-                raise gr.Error("CSV must have a 'smiles' column")
-            smiles_list = df["smiles"].dropna().astype(str).tolist()
-            if "molecule_id" in df.columns:
-                mol_ids = df["molecule_id"].astype(str).tolist()
-            elif "id" in df.columns:
-                mol_ids = df["id"].astype(str).tolist()
-        except Exception as e:
-            raise gr.Error(f"Error reading CSV: {e}")
-    elif smiles_input:
-        import re
+        if csv_file:
+            try:
+                df = pd.read_csv(csv_file)
+                if "smiles" not in df.columns:
+                    raise gr.Error("CSV must have a 'smiles' column")
+                smiles_list = df["smiles"].dropna().astype(str).tolist()
+                if "molecule_id" in df.columns:
+                    mol_ids = df["molecule_id"].astype(str).tolist()
+                elif "id" in df.columns:
+                    mol_ids = df["id"].astype(str).tolist()
+            except Exception as e:
+                raise gr.Error(f"Error reading CSV: {e}")
+        elif smiles_input:
+            import re
 
-        tokens = re.split(r"[,\n\s]+", str(smiles_input).strip())
-        smiles_list = [t.strip() for t in tokens if t.strip()]
-    else:
-        raise gr.Error("Please provide SMILES (text or CSV file)")
-
-    if not smiles_list:
-        raise gr.Error("No SMILES found in input")
-
-    if not mol_ids or len(mol_ids) != len(smiles_list):
-        mol_ids = [f"mol_{i}" for i in range(len(smiles_list))]
-
-    try:
-        if (model_type or "").startswith("RandomForest"):
-            from dta_gnn.models.predict import predict_with_random_forest
-
-            result = predict_with_random_forest(run_dir, smiles_list, mol_ids)
-        elif (model_type or "").startswith("SVR"):
-            from dta_gnn.models.predict import predict_with_svr
-
-            result = predict_with_svr(run_dir, smiles_list, mol_ids)
+            tokens = re.split(r"[,\n\s]+", str(smiles_input).strip())
+            smiles_list = [t.strip() for t in tokens if t.strip()]
         else:
-            from dta_gnn.models.predict import predict_with_gnn
-            
-            # Extract architecture from model selector if provided
-            # Format: "GNN (GIN)" -> "gin", "GNN (Transformer)" -> "transformer"
-            architecture = None
-            if model_selector and model_selector.startswith("GNN ("):
-                # Extract architecture name from "GNN (ArchName)"
-                arch_match = model_selector.replace("GNN (", "").replace(")", "").strip().lower()
-                # Map display names to actual architecture names
-                arch_map = {
-                    "gin": "gin",
-                    "gcn": "gcn",
-                    "gat": "gat",
-                    "sage": "sage",
-                    "pna": "pna",
-                    "transformer": "transformer",
-                    "tag": "tag",
-                    "arma": "arma",
-                    "cheb": "cheb",
-                    "supergat": "supergat",
-                }
-                architecture = arch_map.get(arch_match)
-            
-            result = predict_with_gnn(
-                run_dir, smiles_list, mol_ids, batch_size=int(batch_size), architecture=architecture
-            )
-    except Exception as e:
-        raise gr.Error(str(e))
+            raise gr.Error("Please provide SMILES (text or CSV file)")
 
-    pred_path = run_dir / "predictions_new.csv"
-    result.predictions.to_csv(pred_path, index=False)
+        if not smiles_list:
+            raise gr.Error("No SMILES found in input")
 
-    summary = (
-        "### Prediction Results\n"
-        f"- **Model**: {result.model_type}\n"
-        f"- **Total Molecules**: {len(smiles_list)}\n"
-        f"- **Successful**: {int(result.predictions['prediction'].notna().sum())}\n"
-        f"- **Failed**: {int(result.predictions['prediction'].isna().sum())}\n"
-    )
+        if not mol_ids or len(mol_ids) != len(smiles_list):
+            mol_ids = [f"mol_{i}" for i in range(len(smiles_list))]
 
-    return (
-        result.predictions,
-        summary,
-        str(pred_path),
-    )
+        try:
+            if (model_type or "").startswith("RandomForest"):
+                from dta_gnn.models.predict import predict_with_random_forest
+
+                result = predict_with_random_forest(run_dir, smiles_list, mol_ids)
+            elif (model_type or "").startswith("SVR"):
+                from dta_gnn.models.predict import predict_with_svr
+
+                result = predict_with_svr(run_dir, smiles_list, mol_ids)
+            else:
+                from dta_gnn.models.predict import predict_with_gnn
+
+                architecture = None
+                if model_selector and model_selector.startswith("GNN ("):
+                    arch_match = model_selector.replace("GNN (", "").replace(")", "").strip().lower()
+                    arch_map = {
+                        "gin": "gin",
+                        "gcn": "gcn",
+                        "gat": "gat",
+                        "sage": "sage",
+                        "pna": "pna",
+                        "transformer": "transformer",
+                        "tag": "tag",
+                        "arma": "arma",
+                        "cheb": "cheb",
+                        "supergat": "supergat",
+                    }
+                    architecture = arch_map.get(arch_match)
+
+                result = predict_with_gnn(
+                    run_dir, smiles_list, mol_ids, batch_size=int(batch_size), architecture=architecture
+                )
+        except Exception as e:
+            raise gr.Error(str(e))
+
+        pred_path = run_dir / "predictions_new.csv"
+        result.predictions.to_csv(pred_path, index=False)
+
+        summary = (
+            "### Prediction Results\n"
+            f"- **Model**: {result.model_type}\n"
+            f"- **Total Molecules**: {len(smiles_list)}\n"
+            f"- **Successful**: {int(result.predictions['prediction'].notna().sum())}\n"
+            f"- **Failed**: {int(result.predictions['prediction'].isna().sum())}\n"
+        )
+
+        return (
+            result.predictions,
+            summary,
+            str(pred_path),
+            log_stream.getvalue(),
+        )
 
 
 @dataclass
@@ -1600,7 +1614,7 @@ def build_ui() -> tuple[gr.Blocks, UIComponents]:
         with gr.Row(elem_id="app-header"):
             with gr.Column(scale=0, min_width=320):
                 gr.Image(
-                    value="assets/logo3.png",
+                    value="https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/logo3.png",
                     show_label=False,
                     interactive=False,
                     container=False,
@@ -1645,7 +1659,7 @@ def build_ui() -> tuple[gr.Blocks, UIComponents]:
                 with gr.Row():
                     with gr.Column():
                         gr.Image(
-                            value="assets/overview.png",
+                            value="https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/overview.png",
                             show_label=False,
                             interactive=False,
                             container=False,
@@ -2640,17 +2654,20 @@ def build_ui() -> tuple[gr.Blocks, UIComponents]:
                                 """
                             )
                             
-                            citation_bibtex = """@software{dta_gnn,
-  title = {DTA-GNN: Target-Specific Binding Affinity Dataset Builder and GNN Trainer},
-  author = {Özsari, Gökhan},
-  year = {2026},
-  url = {https://github.com/gozsari/DTA-GNN}
+                            citation_bibtex = """@article{ozsari2026dta,
+  title={DTA-GNN: a toolkit for constructing target-specific drug--target affinity datasets and training graph neural networks},
+  author={Özsari, Gökhan and Rifaioğlu, Ahmet Süreyya and Acar, Aybar Can and Doğan, Tunca and Atalay, M Volkan},
+  journal={SoftwareX},
+  volume={34},
+  pages={102671},
+  year={2026},
+  publisher={Elsevier}
 }"""
                             
                             citation_textbox = gr.Textbox(
                                 value=citation_bibtex,
                                 label="BibTeX Citation",
-                                lines=7,
+                                lines=10,
                                 interactive=True,
                                 info="Copy the citation text above for use in your publications.",
                                 elem_classes=["citation-box"]
@@ -2925,6 +2942,7 @@ def bind_events(demo: gr.Blocks, ui: UIComponents) -> None:
             ui.run_dir_text,
             ui.artifacts_df,
             ui.all_artifacts_zip,
+            ui.logs_box,
         ],
     )
 
@@ -2961,6 +2979,7 @@ def bind_events(demo: gr.Blocks, ui: UIComponents) -> None:
             ui.run_dir_text,
             ui.artifacts_df,
             ui.all_artifacts_zip,
+            ui.logs_box,
         ],
     )
 
@@ -3043,6 +3062,7 @@ def bind_events(demo: gr.Blocks, ui: UIComponents) -> None:
             ui.artifacts_df,
             ui.gnn_embeddings_file,
             ui.all_artifacts_zip,
+            ui.logs_box,
         ],
     )
 
@@ -3115,6 +3135,7 @@ def bind_events(demo: gr.Blocks, ui: UIComponents) -> None:
             ui.ho_best_params_file,
             ui.run_dir_text,
             ui.artifacts_df,
+            ui.logs_box,
         ],
     )
 
@@ -3142,6 +3163,7 @@ def bind_events(demo: gr.Blocks, ui: UIComponents) -> None:
             ui.pred_results_df,
             ui.pred_summary,
             ui.pred_download,
+            ui.logs_box,
         ],
     )
 

@@ -74,19 +74,15 @@ def aggregate_duplicates(
     # Drop rows where the target column is NaN before aggregating
     df_clean = df.dropna(subset=[target_col])
 
-    # Groupby and aggregate
-    grouped = df_clean.groupby(group_cols)[target_col].agg(agg_method).reset_index()
+    agg_dict = {target_col: agg_method}
 
-    # If 'year' is present, we need to preserve it.
-    # Since year is per-activity, and we are aggregating activities for the same Mol-Target pair,
-    # we should take the MIN key (earliest year)? Or MAX?
-    # In 'cold drug', we just need 'a' year. For temporal split, using the earliest year
-    # ensures we don't leak future info (if a drug was published in 2018 and 2022, treating it as 2018 is safe for train).
-    if "year" in df.columns:
-        # We need to aggregate year as well.
-        # Let's perform aggregation on multiple columns.
-        agg_dict = {target_col: agg_method, "year": "min"}
-        grouped = df_clean.groupby(group_cols).agg(agg_dict).reset_index()
+    if "year" in df_clean.columns:
+        agg_dict["year"] = "min"
+
+    if "canonical_smiles" in df_clean.columns:
+        agg_dict["canonical_smiles"] = "first"
+
+    grouped = df_clean.groupby(group_cols).agg(agg_dict).reset_index()
 
     return grouped
 

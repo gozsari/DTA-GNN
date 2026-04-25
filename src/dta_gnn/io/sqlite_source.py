@@ -57,11 +57,13 @@ class ChemblSQLiteSource(ChemblSource):
                     act.standard_units,
                     act.standard_relation,
                     act.pchembl_value,
-                    d.year
+                    d.year,
+                    cs.canonical_smiles
                 FROM target_dictionary td
                 JOIN assays ass ON td.tid = ass.tid
                 JOIN activities act ON ass.assay_id = act.assay_id
                 JOIN molecule_dictionary md ON act.molregno = md.molregno
+                LEFT JOIN compound_structures cs ON md.molregno = cs.molregno
                 LEFT JOIN docs d ON act.doc_id = d.doc_id
                 WHERE td.chembl_id IN ({})
             """.format(",".join("?" * len(target_ids)))
@@ -76,9 +78,11 @@ class ChemblSQLiteSource(ChemblSource):
                     act.standard_units,
                     act.standard_relation,
                     act.pchembl_value,
-                    d.year
+                    d.year,
+                    cs.canonical_smiles
                 FROM activities act
                 JOIN molecule_dictionary md ON act.molregno = md.molregno
+                LEFT JOIN compound_structures cs ON md.molregno = cs.molregno
                 JOIN assays ass ON act.assay_id = ass.assay_id
                 JOIN target_dictionary td ON ass.tid = td.tid
                 LEFT JOIN docs d ON act.doc_id = d.doc_id
