@@ -10,7 +10,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-🧬 *From a UniProt accession → curated ChEMBL dataset → trained GNN with test-set metrics, in a single call.*
+🧬 *From a target (UniProt accession, ChEMBL target ID) → curated ChEMBL dataset → trained GNN with test-set metrics, in a single call.*
 
 [Documentation](docs/index.md) · [Quick Start](#-quick-start) · [Examples](examples/) · [Python API](docs/interfaces/python-api.md) · [CLI](docs/interfaces/cli.md)
 
