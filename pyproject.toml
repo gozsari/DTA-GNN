@@ -43,7 +43,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/gozsari/DTA-GNN"
-Documentation = "https://github.com/gozsari/DTA-GNN/tree/main/docs"
+Documentation = "https://dta-gnn.readthedocs.io/"
 Repository = "https://github.com/gozsari/DTA-GNN"
 Issues = "https://github.com/gozsari/DTA-GNN/issues"
 
