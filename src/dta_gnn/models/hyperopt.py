@@ -1254,8 +1254,6 @@ def optimize_gnn_wandb(
     )
 
 
-# Backwards-compatible aliases: redirect to W&B Bayes versions
-# All optimization now uses W&B Bayes sweeps instead of Optuna
 optimize_random_forest = optimize_random_forest_wandb
 optimize_gnn = optimize_gnn_wandb
 optimize_gin = optimize_gnn_wandb  # Historical alias
