@@ -51,19 +51,24 @@ runs/current/
 
 ### Metrics
 
-**Regression:**
+DTA datasets are regression. The metrics JSON looks like:
 
 ```json
 {
   "model_type": "RandomForest",
   "task_type": "regression",
   "splits": {
-    "train": {"rmse": 0.45, "mae": 0.32, "r2": 0.92},
-    "val": {"rmse": 0.78, "mae": 0.58, "r2": 0.75},
-    "test": {"rmse": 0.82, "mae": 0.61, "r2": 0.72}
+    "train": {"rmse": 0.45, "mae": 0.32, "r2": 0.92, "pearson_r": 0.96, "spearman_r": 0.95},
+    "val":   {"rmse": 0.78, "mae": 0.58, "r2": 0.75, "pearson_r": 0.87, "spearman_r": 0.85},
+    "test":  {"rmse": 0.82, "mae": 0.61, "r2": 0.72, "pearson_r": 0.85, "spearman_r": 0.83}
   }
 }
 ```
+
+> The `train_random_forest_on_run` function will switch to a
+> `RandomForestClassifier` and report `accuracy` if every label is exactly 0
+> or 1 — useful if you ever feed it a binary dataset, but not part of the
+> normal DTA workflow.
 
 ### Loading Trained Model
 
@@ -72,8 +77,8 @@ import joblib
 
 model = joblib.load("runs/current/model_rf.pkl")
 
-# Make predictions
-X_new = ...  # Morgan fingerprints (numpy array)
+# Make predictions on a Morgan fingerprint matrix (n_samples, 2048)
+X_new = ...
 predictions = model.predict(X_new)
 ```
 
@@ -317,10 +322,14 @@ print(f"GNN Test: {gnn_result.metrics['splits']['test']}")
 
 ## Custom Model Training
 
-### Using sklearn
+### Using sklearn (regression)
+
+DTA tasks are regression by default — the `label` column holds continuous
+pChEMBL values, so use a regressor.
 
 ```python
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 import pandas as pd
 import numpy as np
 from dta_gnn.features import calculate_morgan_fingerprints
@@ -330,25 +339,29 @@ df = pd.read_csv("runs/current/dataset.csv")
 compounds = pd.read_csv("runs/current/compounds.csv")
 
 # Merge SMILES
-df = df.merge(compounds[["molecule_chembl_id", "smiles"]], on="molecule_chembl_id")
+df = df.merge(
+    compounds[["molecule_chembl_id", "smiles"]], on="molecule_chembl_id"
+)
 
-# Featurize
+# Featurise (adds a 'morgan_fingerprint' bitstring column)
 df = calculate_morgan_fingerprints(df)
 
-# Convert to arrays
-def fp_to_array(fp_str):
-    return np.array([int(b) for b in fp_str])
+# Convert bitstrings to a feature matrix
+def fp_to_array(fp_str: str) -> np.ndarray:
+    return np.array([int(b) for b in fp_str], dtype=np.uint8)
 
 X = np.vstack(df["morgan_fingerprint"].apply(fp_to_array))
-y = df["label"].values
+y = df["label"].astype(float).values
 
-# Split
 train_mask = df["split"] == "train"
-X_train, y_train = X[train_mask], y[train_mask]
+test_mask  = df["split"] == "test"
 
-# Train
-model = GradientBoostingClassifier(n_estimators=100)
-model.fit(X_train, y_train)
+model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+model.fit(X[train_mask], y[train_mask])
+
+y_pred = model.predict(X[test_mask])
+print(f"Test RMSE: {np.sqrt(mean_squared_error(y[test_mask], y_pred)):.3f}")
+print(f"Test R²  : {r2_score(y[test_mask], y_pred):.3f}")
 ```
 
 ### Using PyTorch

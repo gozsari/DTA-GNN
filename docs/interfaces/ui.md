@@ -406,11 +406,14 @@ Access contact information and citation details for DTA-GNN.
 Copy the BibTeX citation for use in your publications:
 
 ```bibtex
-@software{dta_gnn,
-  title = {DTA-GNN: Target-Specific Binding Affinity Dataset Builder and GNN Trainer},
-  author = {Özsari, Gökhan},
-  year = {2026},
-  url = {https://github.com/gozsari/DTA-GNN}
+@article{ozsari2026dta,
+  title   = {DTA-GNN: a toolkit for constructing target-specific drug--target affinity datasets and training graph neural networks},
+  author  = {Özsari, Gökhan and Rifaioğlu, Ahmet Süreyya and Acar, Aybar Can and Doğan, Tunca and Atalay, M Volkan},
+  journal = {SoftwareX},
+  volume  = {34},
+  pages   = {102671},
+  year    = {2026},
+  publisher = {Elsevier}
 }
 ```
 

@@ -46,9 +46,29 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
+          paths: [src]
           options:
-            show_source: true
+            # Headings & layout
             show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            heading_level: 3
+            members_order: source
+            group_by_category: true
+            # Signatures
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 88
+            # Docstrings
+            docstring_style: google
+            docstring_section_style: table
+            merge_init_into_class: true
+            # Source
+            show_source: true
+            # Filtering
+            filters: ["!^_"]
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -115,5 +135,7 @@ nav:
     - End-to-End Pipeline: modeling/end-to-end.md
   - Hyperparameter Optimization:
     - Overview: hpo/hyperopt.md
+  - Reference:
+    - Python API: reference/python-api.md
   - Development:
     - Contributing: development/contributing.md

@@ -1,6 +1,13 @@
 # Python API
 
-DTA-GNN provides a comprehensive Python API for programmatic dataset building and model training.
+DTA-GNN provides a comprehensive Python API for programmatic dataset building
+and model training.
+
+> **Looking for an exhaustive symbol-by-symbol reference?** See
+> [Reference → Python API](../reference/python-api.md), which is
+> auto-generated from the source docstrings and always tracks the latest
+> code. This page is the *narrative guide* — recipes, examples, and the
+> shape of the public API.
 
 ## End-to-End GNN Training
 
@@ -92,13 +99,13 @@ The main entry point for building datasets.
 ```python
 from dta_gnn.pipeline import Pipeline
 
-# Initialize with SQLite
+# Initialise with a local SQLite database
 pipeline = Pipeline(
     source_type="sqlite",
-    sqlite_path="chembl_36.db"
+    sqlite_path="./chembl_dbs/chembl_36.db",
 )
 
-# Or with Web API
+# Or with the Web API (no setup, but slower)
 pipeline = Pipeline(source_type="web")
 ```
 
@@ -109,29 +116,47 @@ Build a Drug-Target Affinity (regression) dataset.
 ```python
 df = pipeline.build_dta(
     target_ids=["CHEMBL204"],
-    molecule_ids=None,                      # Optional: filter by molecules
-    standard_types=["IC50", "Ki"],          # Activity types
-    split_method="scaffold",
-    output_path="dataset.csv",
+    molecule_ids=None,                      # Optional: also filter by molecules
+    standard_types=["IC50", "Ki"],          # Optional: filter by activity type
+    split_method="scaffold",                # "random" | "scaffold" | "temporal"
+    output_path="dataset.csv",              # Writes dataset.csv if provided
     test_size=0.2,
     val_size=0.1,
-    split_year=2022,                        # Year threshold for temporal split (only used when split_method='temporal')
-    featurize=False
+    split_year=2022,                        # Used only when split_method="temporal"
+    featurize=False,                        # Add a 'morgan_fingerprint' column
 )
 ```
 
-**Parameters:**
-- `target_ids`: Optional list of ChEMBL target IDs
-- `molecule_ids`: Optional list of ChEMBL molecule IDs to filter by
-- `standard_types`: Optional list of activity standard types (e.g., ["IC50", "Ki"])
-- `split_method`: Split strategy - "random", "scaffold", or "temporal" (default: "random")
-- `output_path`: Optional path to save dataset CSV
-- `test_size`: Fraction of data for test set (default: 0.2)
-- `val_size`: Fraction of data for validation set (default: 0.1)
-- `split_year`: Year threshold for temporal split, only used when `split_method="temporal"` (default: 2022)
-- `featurize`: Whether to calculate Morgan fingerprints (default: False)
+**Parameters**
 
-**Returns:** `pd.DataFrame` with `label` as continuous pChEMBL value.
+- `target_ids`: optional list of ChEMBL target IDs (e.g. `["CHEMBL204"]`).
+- `molecule_ids`: optional list of ChEMBL molecule IDs to restrict the query.
+- `standard_types`: optional list of activity types (e.g. `["IC50", "Ki"]`).
+- `split_method`: `"random"`, `"scaffold"`, or `"temporal"` (default: `"random"`).
+- `output_path`: optional path for the dataset CSV.
+- `test_size`, `val_size`: split fractions (defaults: 0.2, 0.1).
+- `split_year`: year threshold for temporal split (default: 2022).
+- `featurize`: whether to add Morgan fingerprints (default: `False`).
+- `progress_callback`: optional `(done, total, message)` callback used by the UI.
+
+**Returns**: `pd.DataFrame` with at least `molecule_chembl_id`,
+`target_chembl_id`, `smiles`, `pchembl_value`, `label`, and `split` columns.
+The `label` column is the continuous pChEMBL value.
+
+**Side effects**
+
+- Writes `dataset.csv` to `output_path` (when set).
+- Writes a temporary `targets_*.csv` with sequence/organism information for
+  the resolved targets and stores its path on `pipeline.last_targets_csv`.
+- **Does not** write `compounds.csv`; you need to write it yourself if you
+  plan to call the on-run trainers (`train_random_forest_on_run`,
+  `train_svr_on_run`, `train_gnn_on_run`):
+
+  ```python
+  df[["molecule_chembl_id", "smiles"]].drop_duplicates().to_csv(
+      run_dir / "compounds.csv", index=False,
+  )
+  ```
 
 ## Data Sources
 
@@ -442,26 +467,33 @@ print(f"Best score: {result.best_value}")
 ### GNN HPO
 
 ```python
-from dta_gnn.models.hyperopt import optimize_gnn_wandb
+from dta_gnn.models.hyperopt import HyperoptConfig, optimize_gnn_wandb
 
 config = HyperoptConfig(
     model_type="GNN",
     n_trials=20,
-    gnn_architecture="gin",
-    gnn_optimize_epochs=True,
-    gnn_optimize_lr=True,
-    gnn_optimize_batch_size=True
+    architecture="gin",       # gin | gcn | gat | sage | pna | transformer | tag | arma | cheb | supergat
+    optimize_epochs=True,
+    optimize_lr=True,
+    optimize_batch_size=True,
 )
 
 result = optimize_gnn_wandb(
     "runs/current",
     config=config,
-    project="my-project"
+    project="my-project",
 )
+
+print("Best params:", result.best_params)
+print("Best score :", result.best_value)
 ```
 
+See the [HPO guide](../hpo/hyperopt.md) for the full list of `HyperoptConfig`
+fields, including all GNN architecture-specific tunables.
+
 !!! note
-    W&B is included in the default install.
+    W&B is included in the default install. Run with `WANDB_MODE=offline` to
+    skip cloud logging.
 
 ## Model Prediction
 

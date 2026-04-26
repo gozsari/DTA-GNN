@@ -147,14 +147,18 @@ dataset.csv + val split → W&B Bayesian sweep (n_trials) → best params
 ### 4. Final Training
 
 ```
-best params → full train+val training → test evaluation → model saved
+best params → train on the train split → evaluate on val and test → model saved
 ```
 
 - Reconstructs a `GnnTrainConfig` from the best hyperparameters.
-- Trains on the combined train+val split for `epochs` epochs.
-- Evaluates on the held-out test set and records RMSE, MAE, and R².
-- Saves model weights to `model_gnn_<arch>.pt` in the run directory.
-- Logs the final run to W&B (same project as HPO).
+- Trains on the `train` split for `epochs` epochs (the `val` split is used
+  for best-checkpoint selection during training).
+- After training, the best-checkpoint model is reloaded and evaluated on the
+  held-out `test` split, recording RMSE, MAE, R², Pearson r, and Spearman r.
+- Saves model weights, encoder weights, and an encoder config JSON to the
+  run directory (`model_gnn_<arch>.pt`, `encoder_<arch>.pt`,
+  `encoder_<arch>_config.json`).
+- Logs the final run to W&B (same project as the HPO sweep).
 
 ---
 

@@ -88,7 +88,7 @@ print(result)
 
 ## Running Audits
 
-The `Pipeline` class does **not** run audits automatically. After building a dataset, run audits manually using the Python API (`audit_scaffold_leakage`, `audit_target_leakage`) or the CLI (`dta_gnn audit <file>`). See the workflow below.
+The `Pipeline` class does **not** run audits automatically. After building a dataset, run audits manually using the Python API (`audit_scaffold_leakage`, `audit_target_leakage`) or the Web UI. See the workflow below.
 
 ## Manual Audit Workflow
 

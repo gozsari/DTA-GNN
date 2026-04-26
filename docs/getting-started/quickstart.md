@@ -1,14 +1,37 @@
 # Quick Start
 
-Get up and running with DTA-GNN in minutes. This guide walks you through building your first target-specific binding affinity (DTA) dataset.
+Get up and running with DTA-GNN in minutes. This guide walks you through
+building your first target-specific binding affinity (DTA) dataset and
+training a model on it.
 
 ## Prerequisites
 
-Ensure you have DTA-GNN installed:
+Ensure DTA-GNN is installed:
 
 ```bash
 pip install dta-gnn
 ```
+
+(Or install from source — see [Installation](installation.md).)
+
+## Option 0: One-call end-to-end (CLI)
+
+If you just want a trained, evaluated GNN for a UniProt accession, the
+fastest path is the `train-gnn` command:
+
+```bash
+# Optionally download a local ChEMBL SQLite database first (much faster):
+dta_gnn setup --version 36 --dir ./chembl_dbs
+
+# Run the full pipeline (UniProt → ChEMBL → scaffold split → W&B HPO → final GNN)
+dta_gnn train-gnn P00533 \
+  --architecture gin \
+  --sqlite-path ./chembl_dbs/chembl_36.db \
+  --n-trials 20 --epochs 30
+```
+
+The CLI prints a per-step timing summary and the test-set RMSE / MAE / R²
+when the run completes. See [End-to-End Pipeline](../modeling/end-to-end.md).
 
 ## Option 1: Web Interface (Recommended for Beginners)
 
@@ -113,39 +136,55 @@ The generated dataset contains these key columns:
 
 ## Example Workflow
 
-Here's a complete example building a dataset and training a baseline model:
+A complete example: build a dataset, then train both a Random Forest baseline
+and a GNN on it.
 
 ```python
-from dta_gnn.pipeline import Pipeline
-from dta_gnn.models import train_random_forest_on_run
 from dta_gnn.io.runs import create_run_dir
-import pandas as pd
+from dta_gnn.pipeline import Pipeline
+from dta_gnn.models import (
+    train_random_forest_on_run,
+    train_gnn_on_run,
+    GnnTrainConfig,
+)
 
-# Step 1: Create a run directory for reproducibility
+# 1. Create a timestamped run directory (also updates runs/current)
 run_dir = create_run_dir()
 print(f"Run directory: {run_dir}")
 
-# Step 2: Build the dataset
-pipeline = Pipeline(source_type="sqlite", sqlite_path="chembl_36.db")
+# 2. Build the dataset (writes dataset.csv to the run directory)
+pipeline = Pipeline(source_type="sqlite", sqlite_path="./chembl_dbs/chembl_36.db")
 df = pipeline.build_dta(
     target_ids=["CHEMBL204"],
     split_method="scaffold",
     test_size=0.2,
     val_size=0.1,
-    output_path=str(run_dir / "dataset.csv")
+    output_path=str(run_dir / "dataset.csv"),
 )
 
-# Step 3: Save compounds separately (required for model training)
-compounds = df[["molecule_chembl_id", "smiles"]].drop_duplicates()
-compounds.to_csv(run_dir / "compounds.csv", index=False)
+# 3. Save compounds.csv — required by all on-run trainers
+df[["molecule_chembl_id", "smiles"]].drop_duplicates().to_csv(
+    run_dir / "compounds.csv", index=False,
+)
 
-# Step 4: Train a Random Forest baseline
-result = train_random_forest_on_run(run_dir, n_estimators=500)
+# 4. Train a Random Forest baseline (Morgan ECFP4 fingerprints)
+rf = train_random_forest_on_run(run_dir, n_estimators=500)
+print("RF test RMSE:", rf.metrics["splits"]["test"]["rmse"])
 
-# Step 5: Review metrics
-print(f"Task type: {result.task_type}")
-print(f"Metrics: {result.metrics}")
+# 5. Train a GNN (PyTorch Geometric)
+gnn = train_gnn_on_run(run_dir, config=GnnTrainConfig(
+    architecture="gin",
+    hidden_dim=128,
+    num_layers=3,
+    epochs=20,
+))
+print("GNN test RMSE:", gnn.metrics["splits"]["test"]["rmse"])
 ```
+
+> **Note** — `Pipeline.build_dta` returns the DataFrame and writes
+> `dataset.csv`, but it does **not** write `compounds.csv`. The on-run
+> trainers (`train_random_forest_on_run`, `train_svr_on_run`,
+> `train_gnn_on_run`) require both files in the run directory.
 
 ## Dataset Splits Explained
 

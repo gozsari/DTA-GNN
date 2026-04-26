@@ -4,16 +4,15 @@
 
 # DTA-GNN: Target-Specific Binding Affinity Dataset Builder and GNN Trainer
 
-**Build leakage-free Drug-Target Affinity datasets from ChEMBL and train Graph Neural Networks for your targets of interest.**
+**Build leakage-free Drug–Target Affinity datasets from ChEMBL and train Graph Neural Networks for any target of interest.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-184%20passing-brightgreen.svg)]()
 
-**🧬 From ChEMBL target → Clean dataset → Trained GNN for your target of interest**
+🧬 *From a UniProt accession → curated ChEMBL dataset → trained GNN with test-set metrics, in a single call.*
 
-[Documentation](docs/) · [Examples](#-examples) · [API Reference](docs/interfaces/python-api.md)
+[Documentation](docs/index.md) · [Quick Start](#-quick-start) · [Examples](examples/) · [Python API](docs/interfaces/python-api.md) · [CLI](docs/interfaces/cli.md)
 
 </div>
 
@@ -21,359 +20,437 @@
 
 ## 🎯 Overview
 
-DTA-GNN is an **end-to-end toolkit** for Drug-Target Affinity prediction that:
+DTA-GNN is an end-to-end toolkit for Drug–Target Affinity (DTA) prediction. It:
 
-1. **Curates** clean, leakage-free datasets from ChEMBL
-2. **Converts** molecules to 2D molecular graphs or Morgan fingerprints
-3. **Trains** baseline models (Random Forest, SVR) and Graph Neural Networks (GIN, GCN, GAT, GraphSAGE, PNA, Transformer, TAG, ARMA, Cheb, SuperGAT)
-4. **Evaluates** with proper scaffold-aware splitting
+1. **Curates** clean, leakage-free regression datasets from ChEMBL (web API or local SQLite).
+2. **Featurises** molecules either as Morgan fingerprints (ECFP4) or 2D molecular graphs.
+3. **Trains** baseline models (Random Forest, SVR) and 10 Graph Neural Network architectures (GIN, GCN, GAT, GraphSAGE, PNA, Transformer, TAG, ARMA, Cheb, SuperGAT).
+4. **Evaluates** with proper scaffold-aware splitting and built-in leakage audits.
+5. **Tracks** hyperparameter search and final training in Weights & Biases.
+
+The regression label is always **pChEMBL**.
 
 <div align="center">
 
 ![DTA-GNN Overview](https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/overview.png)
-*Figure 1. DTA-GNN workflow: clean data from ChEMBL, molecular graph conversion, scaffold-aware splitting, and GNN training.*
+*DTA-GNN workflow: clean data from ChEMBL, molecular graph conversion, scaffold-aware splitting, and GNN training.*
+
 </div>
 
 ---
 
 ## 📦 Installation
 
-### pip
+DTA-GNN supports Python 3.10+ on Linux, macOS, and Windows.
+
+### From source (recommended while iterating)
 
 ```bash
-# from source (development)
+git clone https://github.com/gozsari/DTA-GNN.git
+cd DTA-GNN
 pip install -e .
-
-# With development tools (for contributors)
+# With developer tools (pytest, ruff, black, build, twine):
 pip install -e ".[dev]"
 ```
 
-```bash
-# from PyPI (coming soon!)
-pip install dta-gnn 
+### From PyPI
 
+```bash
+pip install dta-gnn
 ```
+
+PyTorch, PyTorch Geometric, RDKit, and Weights & Biases are installed by default. See the [Installation Guide](docs/getting-started/installation.md) for GPU/CUDA notes and RDKit troubleshooting.
 
 ### Docker
 
 ```bash
-# Pull from GitHub Container Registry
+# Pre-built image
 docker pull ghcr.io/gozsari/dta-gnn:latest
 
-# Run Web UI (Web API mode - no local database needed)
+# Web UI on http://localhost:7860 (web-API mode, no local database)
 docker run --rm -p 7860:7860 ghcr.io/gozsari/dta-gnn:latest \
-    dta_gnn ui --host 0.0.0.0
+  dta_gnn ui --host 0.0.0.0
 
-# Run Web UI with local ChEMBL database
+# Web UI with a local ChEMBL SQLite database mounted in
 docker run --rm -p 7860:7860 \
   -v $(pwd)/chembl_dbs:/home/dtagnn/app/chembl_dbs \
   -v $(pwd)/runs:/home/dtagnn/app/runs \
   ghcr.io/gozsari/dta-gnn:latest dta_gnn ui --host 0.0.0.0
-# In the UI, use path: chembl_dbs/chembl_36.db
 
-# Run CLI commands
-docker run --rm -v $(pwd)/runs:/home/dtagnn/app/runs \
-  ghcr.io/gozsari/dta-gnn:latest \
-  dta_gnn setup --version 36 --dir ./chembl_dbs
-
-# Or use Docker Compose
+# Or with Docker Compose
 docker-compose up ui        # Web UI
-docker-compose up jupyter   # Jupyter Lab
+docker-compose up jupyter   # JupyterLab
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### CLI
+### One command, end-to-end (CLI)
+
+Resolve a UniProt accession, build a scaffold-split dataset, run a W&B Bayesian hyperparameter sweep, train the final GNN, and report test metrics:
 
 ```bash
-# Download ChEMBL database (optional, for faster data access)
+# Web API (no local DB — slower but zero setup)
+dta_gnn train-gnn P00533 --architecture gin --n-trials 20 --epochs 30
+
+# Or with a local ChEMBL SQLite database (much faster)
 dta_gnn setup --version 36 --dir ./chembl_dbs
-
-# Launch the Web UI
-dta_gnn ui
-
-# Run the full end-to-end pipeline from a UniProt ID
-dta_gnn train-gnn P00533 --architecture gin --wandb-project my_project --n-trials 20 --epochs 30
+dta_gnn train-gnn P00533 \
+  --architecture gin \
+  --sqlite-path ./chembl_dbs/chembl_36.db \
+  --wandb-project my_project \
+  --n-trials 20 --epochs 30
 ```
 
-### Python API
+The CLI prints a per-step timing breakdown and the test-set RMSE / MAE / R² when the run finishes. All artifacts land in a timestamped `runs/<TIMESTAMP>/` folder.
+
+### One call, end-to-end (Python)
 
 ```python
-# One-call end-to-end pipeline: UniProt → dataset → HPO → trained GNN → test metrics
 from dta_gnn.training import run_gnn_end_to_end, EndToEndConfig
 
 result = run_gnn_end_to_end(EndToEndConfig(
-    uniprot_ids="P00533",        # EGFR — any UniProt accession
-    architecture="gin",
+    uniprot_ids="P00533",            # EGFR — any UniProt accession
+    architecture="gin",              # gin | gcn | gat | sage | pna | transformer | tag | arma | cheb | supergat
+    sqlite_path="./chembl_dbs/chembl_36.db",  # omit to use the ChEMBL web API
     wandb_project="my_project",
     n_trials=20,
     epochs=30,
 ))
-print(result.test_metrics)   # {"rmse": ..., "r2": ..., "mae": ...}
-print(result.timings)        # per-step wall-clock times
+
+print(result.test_metrics)   # {"rmse": ..., "mae": ..., "r2": ...}
+print(result.timings)        # {"uniprot_mapping": ..., "dataset_build": ..., ...}
+print(result.run_dir)        # Path("runs/20260309_142301")
 ```
 
-Or use the lower-level API to build datasets and train models step by step:
+### Step-by-step (Python — full control)
+
+`Pipeline.build_dta` returns a DataFrame; baseline / GNN trainers expect a *run directory* containing `dataset.csv` and `compounds.csv`. Set those up explicitly:
 
 ```python
+from dta_gnn.io.runs import create_run_dir
 from dta_gnn.pipeline import Pipeline
-from dta_gnn.models import train_random_forest_on_run, train_svr_on_run, train_gnn_on_run, GnnTrainConfig
-
-# 1. Build dataset for your target of interest
-pipeline = Pipeline(source_type="web")
-dataset = pipeline.build_dta(
-    target_ids=["CHEMBL1862"],  # Your kinase, GPCR, or other target
-    split_method="scaffold",    # Proper leakage-free splitting
+from dta_gnn.models import (
+    train_random_forest_on_run,
+    train_svr_on_run,
+    train_gnn_on_run,
+    GnnTrainConfig,
 )
 
-# 2. Train a baseline model (Random Forest or SVR)
-rf_result = train_random_forest_on_run("runs/current", n_estimators=500)
-print(f"RF Test RMSE: {rf_result.metrics['splits']['test']['rmse']:.3f}")
+# 1. Create a fresh timestamped run directory and update runs/current
+run_dir = create_run_dir()
 
-# Or train SVR
-svr_result = train_svr_on_run("runs/current", C=10.0, epsilon=0.1, kernel="rbf")
-print(f"SVR Test RMSE: {svr_result.metrics['splits']['test']['rmse']:.3f}")
+# 2. Build the dataset (writes dataset.csv to the run directory)
+pipeline = Pipeline(source_type="sqlite", sqlite_path="./chembl_dbs/chembl_36.db")
+df = pipeline.build_dta(
+    target_ids=["CHEMBL1862"],   # any ChEMBL target ID(s)
+    split_method="scaffold",     # "random" | "scaffold" | "temporal"
+    test_size=0.2,
+    val_size=0.1,
+    output_path=str(run_dir / "dataset.csv"),
+)
 
-# 3. Train a Graph Neural Network
-config = GnnTrainConfig(
-    architecture="gin",    # GIN, GCN, GAT, GraphSAGE, PNA, Transformer, TAG, ARMA, Cheb, SuperGAT
+# 3. Save compounds.csv (required by the trainers below)
+df[["molecule_chembl_id", "smiles"]].drop_duplicates().to_csv(
+    run_dir / "compounds.csv", index=False
+)
+
+# 4. Train baselines on Morgan fingerprints (ECFP4)
+rf  = train_random_forest_on_run(run_dir, n_estimators=500)
+svr = train_svr_on_run(run_dir, C=10.0, epsilon=0.1, kernel="rbf")
+print("RF  test RMSE:", rf.metrics["splits"]["test"]["rmse"])
+print("SVR test RMSE:", svr.metrics["splits"]["test"]["rmse"])
+
+# 5. Train a Graph Neural Network on 2D molecular graphs
+gnn = train_gnn_on_run(run_dir, config=GnnTrainConfig(
+    architecture="gin",
     hidden_dim=256,
     num_layers=5,
     epochs=100,
-)
-gnn_result = train_gnn_on_run("runs/current", config=config)
-print(f"GNN Test RMSE: {gnn_result.metrics['splits']['test']['rmse']:.3f}")
+))
+print("GNN test RMSE:", gnn.metrics["splits"]["test"]["rmse"])
 ```
 
 ---
 
 ## 🖥️ Web UI
 
-DTA-GNN includes an interactive Gradio-based web interface for building datasets without writing code.
+DTA-GNN ships with an interactive Gradio interface for users who prefer not to script.
 
+### Live demos (limited compute, may be slow)
 
-### Launch the UI
+| Platform | URL |
+|----------|-----|
+| Hugging Face Spaces | <https://huggingface.co/spaces/gozsari/dta-gnn> |
+| SciLifeLab Serve | <https://dta-gnn.serve.scilifelab.se/> |
+
+### Launch locally
 
 ```bash
-# Using pip
-dta_gnn ui
-
-# Using Docker
-docker run --rm -p 7860:7860 ghcr.io/gozsari/dta-gnn:latest \
-    dta_gnn ui --host 0.0.0.0
-
-# Using Docker Compose
-docker-compose up ui
+dta_gnn ui                  # http://127.0.0.1:7860
+dta_gnn ui --host 0.0.0.0   # bind to all interfaces (Docker / remote)
+dta_gnn ui --share          # temporary public Gradio link
 ```
 
-The UI will be available at `http://localhost:7860` (or the specified host/port).
+The UI covers dataset building, leakage audits, baseline / GNN training, hyperparameter optimisation, prediction on new molecules, embedding extraction, and 2-D embedding visualisation. See [Web UI guide](docs/interfaces/ui.md).
 
 ---
 
 ## 🔑 Key Features
 
-### 🤖 Model Training
-- **Baseline models**: Random Forest and SVR using Morgan fingerprints (ECFP4)
-- **10 GNN architectures**: GIN, GCN, GAT, GraphSAGE, PNA, Transformer, TAG, ARMA, Cheb, SuperGAT
-- **Configurable**: Layers, pooling, residual connections, hyperparameters
-- **Embeddings**: Extract learned molecular representations from GNNs
-
-### 🔒 Leakage Prevention
-- Scaffold-aware train/test splits
-- Temporal splits for prospective prediction
-- Automatic leakage auditing
-
-### 📦 End-to-End Pipeline
-- **One-call end-to-end pipeline**: UniProt ID → ChEMBL dataset → W&B HPO → trained GNN → test evaluation
-- ChEMBL data fetching (Web API or SQLite)
-- Standardized pChEMBL conversion
-- Duplicate aggregation
-- Dataset cards for reproducibility
-
-### 🖥️ Multiple Interfaces
-- **CLI**: Quick experiments from terminal
-- **Python API**: Integration in pipelines
-- **Web UI**: [Interactive dataset building](#️-web-ui) - No coding required
+- **End-to-end pipeline.** `dta_gnn train-gnn <UNIPROT>` (CLI) or `run_gnn_end_to_end(...)` (Python) handles target mapping, data fetching, cleaning, scaffold split, W&B Bayesian HPO, final training, and test evaluation in one call.
+- **Two ChEMBL data sources.** Local SQLite (fast, offline) or the official ChEMBL web client (no setup) — same interface either way.
+- **Three splitting strategies.** Random, Murcko-scaffold (cold-drug), and temporal (year-based) splits.
+- **Leakage audits.** `audit_scaffold_leakage` and `audit_target_leakage` quantify train/test contamination.
+- **10 GNN architectures.** GIN, GCN, GAT, GraphSAGE, PNA, Transformer, TAG, ARMA, Cheb, SuperGAT — all with configurable depth, pooling, residual connections, and architecture-specific hyperparameters.
+- **Two baselines.** Random Forest and SVR over Morgan ECFP4 fingerprints.
+- **Hyperparameter optimisation.** W&B Bayesian sweeps for RF, SVR, and GNNs (`optimize_random_forest_wandb`, `optimize_svr_wandb`, `optimize_gnn_wandb`); a non-W&B Optuna fallback is also available.
+- **Reproducible run directories.** Every run is written to `runs/<TIMESTAMP>/` with `dataset.csv`, `compounds.csv`, `metadata.json`, model weights, predictions, and metrics.
+- **Three interfaces.** CLI, Python API, and Gradio Web UI.
 
 ---
 
-## Supported GNN Architectures
+## 🧠 Supported GNN Architectures
 
-DTA-GNN supports multiple Graph Neural Network (GNN) architectures out of the box, enabling flexibility across different graph structures, scales, and learning objectives.
+| Architecture | Key idea |
+|--------------|----------|
+| **GIN** | Graph Isomorphism Network — sum aggregation with learnable ε; MLP-based updates with strong discriminative power |
+| **GCN** | Graph Convolutional Network — symmetric normalised adjacency; efficient spectral convolution |
+| **GAT** | Graph Attention Network — learnable multi-head neighbour attention |
+| **GraphSAGE** | Sample-and-aggregate inductive learning with mean / max / lstm / pool aggregators |
+| **PNA** | Principal Neighbourhood Aggregation — multiple aggregators with degree-aware scalers |
+| **Transformer** | Graph Transformer with multi-head self-attention and optional edge features |
+| **TAG** | Topology Adaptive Graph Convolution — explicit K-hop message passing |
+| **ARMA** | Auto-Regressive Moving Average filters with residual stacks |
+| **Cheb** | Chebyshev spectral graph convolution (K-hop polynomial filtering) |
+| **SuperGAT** | Self-supervised attention via link prediction |
 
-| Architecture | Description | Key Characteristics |
-|--------------|-------------|---------------------|
-| **GIN** | Graph Isomorphism Network | Highly expressive; sum aggregation with learnable ε; MLP-based updates with strong theoretical discriminative power |
-| **GCN** | Graph Convolutional Network | Symmetric normalized adjacency; efficient and stable spectral convolution; strong baseline for semi-supervised learning |
-| **GAT** | Graph Attention Network | Learnable neighbor attention; multi-head attention for stability; supports edge features and residual connections |
-| **GraphSAGE** | Sample and Aggregate | Inductive learning; neighborhood sampling for scalability; flexible aggregators (mean, max, LSTM) |
-| **PNA** | Principal Neighbourhood Aggregation | Multiple aggregators and degree-aware scalers; adapts to varying node degree distributions; robust on heterogeneous graphs |
-| **Transformer** | Graph Transformer with multi-head attention | Dot-product self-attention; optional edge features; gated skip connections for stable deep learning |
-| **TAG** | Topology Adaptive Graph Convolution | Explicit K-hop message passing; adapts filters to local topology; polynomial-style convolution |
-| **ARMA** | Auto-Regressive Moving Average | Recursive stacked filters with residual connections; stable deep propagation; efficient spectral approximation |
-| **Cheb** | Chebyshev Spectral Graph Convolution | K-hop localized spectral filtering; Chebyshev polynomial approximation; avoids eigen-decomposition |
-| **SuperGAT** | Supervised Graph Attention Network | Self-supervised attention via link prediction; combines structural and feature-based attention; robust attention learning |
-
-### Configuration
+Architecture configuration:
 
 ```python
 from dta_gnn.models import GnnTrainConfig
 
 config = GnnTrainConfig(
-    architecture="gin",        # gin, gcn, gat, sage, pna, transformer, tag, arma, cheb, supergat
-    embedding_dim=128,         # Atom embedding dimension
-    hidden_dim=256,            # Hidden layer dimension
-    num_layers=5,              # Number of message passing layers
-    dropout=0.1,               # Dropout rate
-    pooling="attention",       # add, mean, max, attention
-    residual=True,             # Residual connections
-    # Architecture-specific parameters (optional)
-    gin_conv_mlp_layers=2,     # GIN: MLP depth in convolution
-    gin_train_eps=False,       # GIN: Whether to learn epsilon
-    gin_eps=0.0,               # GIN: Initial epsilon value
-    gat_heads=4,               # GAT: Number of attention heads
-    sage_aggr="mean",          # GraphSAGE: Aggregation (mean, max, lstm, pool)
-    transformer_heads=4,       # Transformer: Number of attention heads
-    tag_k=2,                   # TAG: K-hop message passing
-    arma_num_stacks=1,         # ARMA: Number of stacks
-    arma_num_layers=1,         # ARMA: Number of layers per stack
-    cheb_k=2,                  # Cheb: K-hop spectral filtering
-    supergat_heads=4,          # SuperGAT: Number of attention heads
-    supergat_attention_type="MX",  # SuperGAT: Attention type (MX, SD)
-    lr=1e-3,                   # Learning rate
+    architecture="gin",        # see table above
+    embedding_dim=128,         # atom embedding dimension
+    hidden_dim=256,            # hidden layer dimension
+    num_layers=5,              # number of message-passing layers
+    dropout=0.1,
+    pooling="attention",       # add | mean | max | attention
+    residual=True,
+    head_mlp_layers=2,
+    # Architecture-specific (only the relevant fields are used at runtime):
+    gin_conv_mlp_layers=2, gin_train_eps=False, gin_eps=0.0,
+    gat_heads=4,
+    sage_aggr="mean",
+    transformer_heads=4,
+    tag_k=2,
+    arma_num_stacks=1, arma_num_layers=1,
+    cheb_k=2,
+    supergat_heads=4, supergat_attention_type="MX",
+    lr=1e-3,
     batch_size=64,
     epochs=100,
 )
 ```
 
+> **Note** — `TransformerConv` does not currently support Apple-Silicon MPS; DTA-GNN automatically falls back to CPU for the `transformer` architecture on MPS.
+
 ---
 
 ## 🔬 Molecular Graph Representation
 
-DTA-GNN converts SMILES to rich 2D molecular graphs:
-
 ```
-Molecule (SMILES) → Atoms (Nodes) + Bonds (Edges) → GNN → Prediction
+SMILES → atoms (nodes) + bonds (edges) → GNN → pChEMBL prediction
 ```
 
-**Node Features (6D):**
-- Atomic number
-- Total degree
-- Formal charge
-- Total H count
-- Aromaticity
-- Atomic mass
+**Atom features (6-D):** atomic number, total degree, formal charge, total H count, aromaticity, atomic mass.
 
-**Edge Features (6D):**
-- Single/Double/Triple bond
-- Aromaticity
-- Conjugation
-- Ring membership
+**Bond features (6-D):** is single / double / triple / aromatic, conjugation, in-ring.
 
 ```python
 from dta_gnn.features.molecule_graphs import smiles_to_graph_2d
 
-# Convert any molecule to a graph
-graph = smiles_to_graph_2d(
+g = smiles_to_graph_2d(
     molecule_chembl_id="aspirin",
-    smiles="CC(=O)OC1=CC=CC=C1C(=O)O"
+    smiles="CC(=O)OC1=CC=CC=C1C(=O)O",
 )
-print(f"Atoms: {len(graph.atom_type)}, Bonds: {graph.edge_index.shape[1]//2}")
+print(f"Atoms: {len(g.atom_type)}, Bonds: {g.edge_index.shape[1] // 2}")
 ```
 
 ---
 
-## 📊 Examples
+## 📂 Project Structure
 
-### Complete Workflow
+```
+DTA-GNN/
+├── src/dta_gnn/
+│   ├── cli.py                # CLI entry point (audit, setup, ui, train-gnn)
+│   ├── pipeline.py           # Pipeline.build_dta — dataset assembly
+│   ├── training/             # End-to-end orchestration (run_gnn_end_to_end)
+│   ├── io/                   # ChEMBL sources (web / sqlite), downloader,
+│   │                         # UniProt→ChEMBL target mapping, run dirs
+│   ├── cleaning/             # Activity standardisation, deduplication
+│   ├── splits/               # Random / scaffold / temporal split strategies
+│   ├── features/             # Morgan fingerprints, 2-D molecule graphs
+│   ├── models/               # RF, SVR, GNN training + W&B/Optuna HPO + predict
+│   ├── audits/               # Scaffold and target leakage audits
+│   ├── exporters/            # Run-dir artifact collection, ZIP, dataset cards
+│   ├── visualization.py      # Activity dist, split sizes, chemical-space plots
+│   ├── app/                  # Gradio Web UI
+│   └── app_features/         # Helpers used by the Web UI
+├── docs/                     # MkDocs-Material site (see mkdocs.yml)
+├── examples/                 # Notebooks + setup scripts
+├── tests/                    # pytest test suite
+├── pyproject.toml            # Package metadata and dependencies
+└── docker-compose.yml        # ui + jupyter services
+```
+
+A typical run directory looks like:
+
+```
+runs/20260309_142301/
+├── dataset.csv                       # Full dataset with split column
+├── compounds.csv                     # molecule_chembl_id, smiles
+├── metadata.json                     # Pipeline metadata
+├── model_rf.pkl                      # RF baseline (joblib)
+├── model_svr.pkl                     # SVR baseline (joblib)
+├── model_gnn_<arch>.pt               # Trained GNN weights
+├── encoder_<arch>.pt                 # GNN encoder (for embedding extraction)
+├── encoder_<arch>_config.json
+├── model_metrics_gnn_<arch>.json
+├── model_predictions_gnn_<arch>.csv
+└── molecule_embeddings.npz           # (after extract_gnn_embeddings_on_run)
+```
+
+---
+
+## 📊 Example: full workflow with leakage audit
 
 ```python
+from dta_gnn.io.runs import create_run_dir
 from dta_gnn.pipeline import Pipeline
-from dta_gnn.models import train_gnn_on_run, GnnTrainConfig
 from dta_gnn.audits import audit_scaffold_leakage
+from dta_gnn.models import (
+    train_gnn_on_run,
+    extract_gnn_embeddings_on_run,
+    GnnTrainConfig,
+)
 
-# Step 1: Build dataset for kinase targets
-pipeline = Pipeline(source_type="sqlite", sqlite_path="chembl_36.db")
+# 1. Create run directory
+run_dir = create_run_dir()
+
+# 2. Build dataset for several kinase targets
+pipeline = Pipeline(source_type="sqlite", sqlite_path="./chembl_dbs/chembl_36.db")
 df = pipeline.build_dta(
     target_ids=["CHEMBL1862", "CHEMBL2111", "CHEMBL3778"],
     split_method="scaffold",
+    output_path=str(run_dir / "dataset.csv"),
 )
-print(f"Dataset: {len(df)} drug-target pairs")
+df[["molecule_chembl_id", "smiles"]].drop_duplicates().to_csv(
+    run_dir / "compounds.csv", index=False
+)
+print(f"Dataset: {len(df)} drug–target pairs")
 
-# Step 2: Verify no data leakage
+# 3. Verify there is no scaffold leakage between train and test
 train = df[df["split"] == "train"]
-test = df[df["split"] == "test"]
+test  = df[df["split"] == "test"]
 audit = audit_scaffold_leakage(train, test)
-print(f"Scaffold leakage: {audit['leakage_ratio']:.1%}")  # Should be 0%
+print(f"Scaffold leakage: {audit['leakage_ratio']:.1%}")  # expect 0.0%
 
-# Step 3: Train GNN model
-config = GnnTrainConfig(
+# 4. Train a GNN
+gnn = train_gnn_on_run(run_dir, config=GnnTrainConfig(
     architecture="gin",
     hidden_dim=256,
     num_layers=5,
     pooling="attention",
     epochs=100,
-)
-result = train_gnn_on_run("runs/current", config=config)
+))
+for split in ("train", "val", "test"):
+    print(f"{split:5s} RMSE: {gnn.metrics['splits'][split]['rmse']:.3f}")
 
-# Step 4: Evaluate
-print(f"Train RMSE: {result.metrics['splits']['train']['rmse']:.3f}")
-print(f"Val RMSE:   {result.metrics['splits']['val']['rmse']:.3f}")
-print(f"Test RMSE:  {result.metrics['splits']['test']['rmse']:.3f}")
-
-# Step 5: Extract molecular embeddings for downstream tasks
-from dta_gnn.models import extract_gnn_embeddings_on_run
-embeddings = extract_gnn_embeddings_on_run("runs/current")
-print(f"Extracted {embeddings.n_molecules} embeddings of dim {embeddings.embedding_dim}")
+# 5. Extract molecular embeddings for downstream tasks
+emb = extract_gnn_embeddings_on_run(run_dir)
+print(f"Extracted {emb.n_molecules} embeddings of dim {emb.embedding_dim}")
 ```
 
 ---
 
-## 👥 Who Is This For?
+## 👥 Who is this for?
 
-| You Are... | You Want To... | DTA-GNN Gives You... |
+| You are… | You want to… | DTA-GNN gives you… |
 |------------|----------------|---------------------|
-| **Drug Discovery Researcher** | Predict affinity for your target | End-to-end pipeline with baseline models and GNNs |
-| **ML Researcher** | Benchmark new GNN architectures | Leakage-free datasets + baselines (RF, SVR, 10 GNN architectures) |
-| **Computational Chemist** | Screen compounds virtually | Trained models + embeddings |
+| Drug-discovery researcher | Predict affinity for your target | End-to-end pipeline with baselines and GNNs |
+| ML researcher | Benchmark GNN architectures | Leakage-free datasets + 2 baselines + 10 GNNs |
+| Computational chemist | Screen compounds virtually | Trained models, predictions, and embeddings |
 
 ---
 
 ## 📖 Documentation
 
-- [Installation Guide](docs/getting-started/installation.md)
+- [Installation](docs/getting-started/installation.md)
 - [Quick Start](docs/getting-started/quickstart.md)
-- [GNN Training Guide](docs/modeling/models.md)
-- [API Reference](docs/interfaces/python-api.md)
+- [Data Sources (web vs. SQLite)](docs/user-guide/data-sources.md)
+- [Target Mapping (UniProt → ChEMBL)](docs/user-guide/target-mapping.md)
+- [Cleaning](docs/user-guide/cleaning.md) · [Splits](docs/user-guide/splits.md) · [Leakage Audits](docs/user-guide/audits.md) · [Visualization](docs/user-guide/visualization.md)
+- [Featurisation](docs/modeling/features.md) · [Training Models](docs/modeling/models.md) · [End-to-End Pipeline](docs/modeling/end-to-end.md)
+- [Hyperparameter Optimisation](docs/hpo/hyperopt.md)
+- Interfaces: [CLI](docs/interfaces/cli.md) · [Python API](docs/interfaces/python-api.md) · [Web UI](docs/interfaces/ui.md)
+- [Contributing](docs/development/contributing.md)
+
+Build the docs locally:
+
+```bash
+pip install mkdocs mkdocs-material mkdocstrings[python]
+mkdocs serve   # http://127.0.0.1:8000
+```
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-pytest tests/ -v
+pytest                       # full test suite
+pytest -k "splits"           # run a subset
+pytest --cov=dta_gnn         # with coverage (requires pytest-cov)
 ```
+
+---
+
+## 🛠️ Troubleshooting (top hits)
+
+| Symptom | Likely cause / fix |
+|---------|--------------------|
+| `FileNotFoundError: Missing dataset.csv` when training a baseline | You called `train_*_on_run("runs/current", …)` without first writing `dataset.csv`. Build a dataset with `pipeline.build_dta(..., output_path=str(run_dir / "dataset.csv"))` and save `compounds.csv` before training. |
+| `ValueError: SQLite DB not found` | Pass `sqlite_path` to `Pipeline` (or `--sqlite-path` to the CLI) pointing at the `.db` file extracted by `dta_gnn setup`. |
+| `ValueError: Invalid UniProt accession(s)` | UniProt regex-validates input. Check that you're passing accessions like `P00533`, not gene symbols. |
+| ChEMBL web API HTTP 500s | Transient EBI outage — retry, or switch to a local SQLite database. |
+| `TransformerConv` warning falling back to CPU on Mac | `transformer` architecture is not yet supported on MPS; CPU fallback is automatic. |
+| W&B prompts for login during HPO | `export WANDB_API_KEY=…` or pass `wandb_api_key=...`; or run with `WANDB_MODE=offline` to skip cloud logging. |
+
+More detail in each subsection of [the docs](docs/index.md).
 
 ---
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE)
+Released under the [MIT License](LICENSE).
 
 ---
 
 ## 📚 Citation
 
+If you use DTA-GNN in your research, please cite:
+
 ```bibtex
 @article{ozsari2026dta,
-  title={DTA-GNN: a toolkit for constructing target-specific drug--target affinity datasets and training graph neural networks},
-  author={Özsari, Gökhan and Rifaioğlu, Ahmet Süreyya and Acar, Aybar Can and Doğan, Tunca and Atalay, M Volkan},
-  journal={SoftwareX},
-  volume={34},
-  pages={102671},
-  year={2026},
-  publisher={Elsevier}
+  title   = {DTA-GNN: a toolkit for constructing target-specific drug--target affinity datasets and training graph neural networks},
+  author  = {Özsari, Gökhan and Rifaioğlu, Ahmet Süreyya and Acar, Aybar Can and Doğan, Tunca and Atalay, M Volkan},
+  journal = {SoftwareX},
+  volume  = {34},
+  pages   = {102671},
+  year    = {2026},
+  publisher = {Elsevier}
 }
 ```

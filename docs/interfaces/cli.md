@@ -1,6 +1,6 @@
 # Command Line Interface
 
-DTA-GNN provides a command-line interface for setup, UI launch, lightweight auditing, and end-to-end GNN training from a UniProt accession.
+DTA-GNN provides a command-line interface for ChEMBL database setup, launching the Web UI, and running the end-to-end GNN training pipeline from a UniProt accession.
 
 ## Installation
 
@@ -20,12 +20,15 @@ dta_gnn --help
 
 | Command | Description |
 |---------|-------------|
-| `audit` | Run audit on an existing dataset *(coming soon)* |
-| `setup` | Download and set up ChEMBL database |
+| `setup` | Download and extract a ChEMBL SQLite database |
 | `ui` | Launch the Gradio web interface |
-| `train-gnn` | Run end-to-end GNN training pipeline from a UniProt ID |
+| `train-gnn` | End-to-end GNN training pipeline from one or more UniProt accessions |
 
-Dataset building is also available via the Python API (`Pipeline.build_dta()`) or the Web UI (`dta_gnn ui`) for more control over individual steps.
+Dataset building itself is exposed through the Python API
+(`Pipeline.build_dta`) and the Web UI for fine-grained control over each
+step. Leakage audits are available via the Python API
+(`dta_gnn.audits.audit_scaffold_leakage`,
+`dta_gnn.audits.audit_target_leakage`) and the Web UI.
 
 ## setup
 
@@ -49,46 +52,19 @@ Options:
 ### Example
 
 ```bash
-# Download ChEMBL 36 to a dedicated folder
+# Download ChEMBL 36 into a dedicated folder
 mkdir -p ./chembl_dbs
 dta_gnn setup --version 36 --dir ./chembl_dbs
 
-# Output:
+# Output (truncated):
 # Downloading ChEMBL 36 to ./chembl_dbs...
-# Successfully set up database at: ./chembl_dbs/chembl_36.db
-# You can now use this path in the UI or with `Pipeline(source_type="sqlite", sqlite_path=...)`.
+# Successfully set up database at: ./chembl_dbs/chembl_36/chembl_36_sqlite/chembl_36.db
+# You can now use this path with --db-path or in the UI.
 ```
 
-## audit
-
-!!! warning "Coming Soon"
-    The `audit` CLI command is a placeholder. For now, use the Python API
-    (`audit_scaffold_leakage`, `audit_target_leakage`) or the Web UI instead.
-
-Run leakage audits on an existing dataset file.
-
-### Usage
-
-```bash
-dta_gnn audit dataset.csv
-```
-
-### Options
-
-```
-Usage: dta_gnn audit [OPTIONS] FILE
-
-  Run audit on an existing dataset file.
-
-Arguments:
-  FILE  Path to dataset CSV  [required]
-
-Options:
-  --help  Show this message and exit.
-```
-
-!!! note
-    The audit command currently provides basic functionality. For comprehensive audit features including scaffold leakage detection and detailed reporting, use the Python API (`dta_gnn.audits` module).
+The exact extracted path comes from EBI's tarball (`chembl_<v>/chembl_<v>_sqlite/chembl_<v>.db`).
+You can pass it to the UI ("SQLite" data source), to `dta_gnn train-gnn --sqlite-path …`,
+or to `Pipeline(source_type="sqlite", sqlite_path=…)`.
 
 ## ui
 
