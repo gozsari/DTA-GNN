@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 RUN pip install --no-cache-dir dta-gnn==0.2.1
 
+COPY main.py $HOME/app/main.py
+
 ENV GRADIO_SERVER_NAME="0.0.0.0"
 ENV GRADIO_TEMP_DIR="$HOME/app/temp/"
 
@@ -31,4 +33,4 @@ USER $USER
 
 EXPOSE 7860
 
-CMD ["dta_gnn", "ui", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "main.py"]
