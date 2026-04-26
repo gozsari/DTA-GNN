@@ -38,8 +38,8 @@ theme:
     - content.code.annotate
   icon:
     repo: fontawesome/brands/github
-  logo: assets/logo3.png
-  favicon: assets/logo3.png
+  logo: https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/logo3.png
+  favicon: https://raw.githubusercontent.com/gozsari/DTA-GNN/main/assets/logo3.png
 
 plugins:
   - search
